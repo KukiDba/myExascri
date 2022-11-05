@@ -1,0 +1,194 @@
+create tablespace tbs01 datafile '+DATA' size 100m;
+
+drop table sales purge;
+create table sales tablespace tbs01 as
+select 'Oracle Enterprise Edition' as product, mod(rownum,5) as channel_id,
+mod(rownum,1000) as cust_id ,5000 as amount_sold, to_date
+('01.' || lpad(to_char(mod(rownum,12)+1),2,'0') || '2010' ,'dd.mm.yyyy')
+as time_id from dual connect by level<=200000;
+
+
+select bytes/1024/1024 as mb from dba_segments where segment_name='SALES' and owner='SYS';
+
+select tablespace_name,table_name from dba_tables where table_name='SALES' and owner='SYS';
+
+
+SQL> select bytes/1024/1024 as mb from dba_segments where segment_name='SALES' and owner='SYS';
+
+        MB
+----------
+        11
+
+SQL> select tablespace_name,table_name from dba_tables where table_name='SALES' and owner='SYS';
+
+TABLESPACE_NAME                TABLE_NAME
+------------------------------ ------------------------------
+TBS01                          SALES
+
+SQL> alter table sales nologging;
+
+Table altered.
+
+SQL> insert /*+ append */ into sales select * from sales;
+
+200000 rows created.
+
+SQL> commit;
+
+Commit complete.
+
+SQL> insert /*+ append */ into sales select * from sales;
+
+400000 rows created.
+
+SQL> commit;
+
+Commit complete.
+
+SQL> select bytes/1024/1024 as mb from dba_segments where segment_name='SALES' and owner='SYS';
+
+        MB
+----------
+        43
+
+exec dbms_stats.gather_table_stats('SYS','SALES')
+
+SQL>  exec dbms_stats.gather_table_stats('SYS','SALES')
+
+PL/SQL procedure successfully completed.
+
+
+SQL> show parameter cell_offload_processing
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+cell_offload_processing              boolean     TRUE
+SQL>
+
+alter session set cell_offload_processing=false;
+set timing on
+show parameter cell_offload_processing
+
+select sql_id from v$sql where sql_text like '%NO_SMART_SCAN%' and sql_text not like '%like%';
+select sql_id from v$sql where sql_text like '%WITH_SMART_SCAN%' and sql_text not like '%like%';
+
+alter system flush shared_pool;
+alter system flush buffer_cache;
+
+select sql_id from v$sql where sql_text like '%NO_SMART_SCAN%' and sql_text not like '%like%';
+select sql_id from v$sql where sql_text like '%WITH_SMART_SCAN%' and sql_text not like '%like%';
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+
+select /* NO_SMART_SCAN */ count(*) from sales where channel_id=1;
+select /* NO_SMART_SCAN */ count(*) from sales where channel_id=1;
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+show parameter cell_offload_processing
+set timing on
+alter session set cell_offload_processing=true;
+show parameter cell_offload_processing
+select /* WITH_SMART_SCAN */ count(*) from sales where channel_id=1;
+select /* WITH_SMART_SCAN */ count(*) from sales where channel_id=1;
+
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+
+select sql_text from v$sql where sql_id='09w5f5hxqar4p';
+select sql_text from v$sql where sql_id='81vy8y7fkvzta';
+
+
+SQL> select sql_text from v$sql where sql_id='81vy8y7fkvzta';
+
+SQL_TEXT
+--------------------------------------------------------------------------------
+select /* NO_SMART_SCAN */ count(*) from sales where channel_id=1
+
+Elapsed: 00:00:00.00
+SQL> select sql_text from v$sql where sql_id='09w5f5hxqar4p';
+
+SQL_TEXT
+--------------------------------------------------------------------------------
+select /* WITH_SMART_SCAN */ count(*) from sales where channel_id=1
+
+Elapsed: 00:00:00.00
+SQL>
+
+select sql_id from v$sql where sql_text like '%NO_SMART_SCAN%' and sql_text not like '%like%';
+
+
+set lines 200 pages 1000
+select plan_table_output from table (dbms_xplan.display_cursor('81vy8y7fkvzta'));
+
+An ordinary full table scan as expected. Now the second trial:
+
+select sql_id from v$sql where sql_text like '%WITH_SMART_SCAN%' and sql_text not like '%like%';
+
+select plan_table_output from table (dbms_xplan.display_cursor('09w5f5hxqar4p'));
+
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+
+SQL> @lst15-05-exass-vsql.sql
+Enter value for sql_id: 81vy8y7fkvzta
+old  10: where sql_id='&&sql_id'
+new  10: where sql_id='81vy8y7fkvzta'
+
+SqlID         ChildNo    AvgSecs Offloaded        ICMB       SSMB SqlText
+------------- ------- ---------- ---------- ---------- ---------- ----------------------------------------
+81vy8y7fkvzta       0       2.78 No          84.359375          0 select /* NO_SMART_SCAN */ count(*) from
+
+Elapsed: 00:00:00.01
+SQL> @lst15-05-exass-vsql.sql
+Enter value for sql_id: 09w5f5hxqar4p
+old  10: where sql_id='&&sql_id'
+new  10: where sql_id='09w5f5hxqar4p'
+
+SqlID         ChildNo    AvgSecs Offloaded        ICMB       SSMB SqlText
+------------- ------- ---------- ---------- ---------- ---------- ----------------------------------------
+09w5f5hxqar4p       0       4.68 Yes        3.72927856 3.72927856 select /* WITH_SMART_SCAN */ count(*) fr
+
+Elapsed: 00:00:00.01
+SQL>
+
+
+SQL> !cat lst15-05-exass-vsql.sql
+set pagesize 999
+set lines 190
+col sql_id format a13 head 'SqlID'
+col child_number format 999 head 'ChildNo'
+col sql_text format a40 head 'SqlText' trunc
+col avgelapsed format 99,999.99 head 'AvgSecs'
+col eligible format a10 head 'Offloaded'
+col icgb format 999,999.99 head 'IO(GB)'
+col ssgb format 999,999.99 head 'SS(GB)'
+select sql_id, child_number,
+  (elapsed_time/1000000)/
+     executions/
+      decode(px_servers_executions,0,1,px_servers_executions) avgelapsed,
+  decode(io_cell_offload_eligible_bytes,0,'No','Yes') eligible,
+  io_interconnect_bytes/1024/1024 icmb,
+  io_cell_offload_returned_bytes/1024/1024 ssmb,
+  sql_text
+from gv$sql s
+where sql_id='&&sql_id'
+order by 1, 2, 3
+/
+undefine sql_id
+
+
+SQL>
+
+

@@ -1,0 +1,1114 @@
+Oracle defines an IORM plan as a
+combination of Category IORM and Interdatabase IORM plans. 
+IORM plans are created by using the alter iormplan command to
+implement both a Category Plan (catplan) and Interdatabase Plan (dbplan)
+
+Note: dbplan and catplan are directives
+
+DB = Interdatabase IORM Plan
+CT = Category IORM Plan
+CG = Intradatabase IORM Plan
+
+* An IORM plan is a combination of a Category plan and an Interdatabase plan.
+
+* A Category plan specifies resource allocations per classification, or category, of resource consumer groups. Categories with the same names are assigned to consumer groups across multiple Exadata databases, and IORM sees these as requests that have the same I/O
+characteristics from a prioritization perspective.
+
+* Categories are assigned to consumer groups and consumer groups are created as part of a DBRM or Intradatabase plan within a database.
+
+* An Interdatabase plan specifies I/O resource allocations on a per database level.
+
+{consumer_type}_{device type}_{metric}
+Where consumer_type represents the IORM resource group and is one of these:
+DB = Interdatabase IORM Plan
+CT = Category IORM Plan
+CG = Intradatabase IORM Plan
+And device_type is the type of storage that serviced the I/O request and is one of the following:
+FC = flash cache
+FD = Flash-based grid disk
+'' = If neither of the above, then the metric represents I/O to physical disks
+
+The last part of the attribute, {metric}, is the descriptive name of the metric. The metric name may be
+further qualified by SM’or LG, indicating that it represents small I/O requests or large I/O requests. 
+
+For example:
+------------
+CG_FC_IO_RQ_LG: The total number of large I/O requests serviced from flash
+cache (FC), for DBRM consumer groups.
+CG_FD_IO_RQ_LG: The total number of large I/O requests serviced from flashbased
+grid disks (FD), for DBRM consumer groups.
+CG_IO_RQ_LG: The total number of large I/O requests serviced from physical disks
+(grid disks), for DBRM consumer groups.
+
+dbplan<---CG<----Directive
+
+DBRP Plan<---------Sessions
+
+DBRM Categories<--Assign your DBRM resource consumer groups to the desired categories created
+
+cellcli -e list iormplan detail
+
+Prioritizing I/O Utilization by Category of Resource Consumers
+
+
+********************************************************************************************************************
+Interdatabase plan
+-------------------
+alter iormplan dbplan=((name=AMBASA, level=1, allocation=100), -
+(name=PROD, level=2, allocation=100), -
+(name=other, level=3, allocation=100))
+
+
+ALTER IORMPLAN -
+dbPlan=( -
+(name=PRODA, level=1, allocation=60), -
+(name=PRODB, level=2, allocation=80), -
+(name=other, level=3, allocation=100))
+
+Note : The aggregate allocation for all databases on a level may not exceed 100%. If the sum of allocations on
+any level exceeds 100%, CellCLI will throw an error CELL-00006. 
+
+For example, the following listing shows the error
+CellCLI produces when over 100% is allocated on level 1:
+
+ALTER IORMPLAN -
+dbPlan=( -
+(name=PRODA, level=1, allocation=60), -
+(name=PRODB, level=1, allocation=80), -
+(name=other, level=3, allocation=100))
+CELL-00006: IORMPLAN contains an invalid allocation total.
+
+cellcli -e list iormplan detail
+
+cellcli -e alter iormplan active
+
+cellcli -e list iormplan detail
+
+tail /opt/oracle/celllog/diag/asm/cell/cell1/trace/alert.log
+
+cellcli -e alter iormplan inactive
+
+cellcli -e list iormplan detail
+
+********************************************************************************************************************
+objective:-->Auto/low_latency/high_throughput/Balanced
+
+low_latency: This setting provides optimization for applications that are extremely
+sensitive to I/O latency. It provides the lowest possible I/O latencies, by
+significantly limiting disk utilization. In other words, throughput-hungry
+applications will be significantly (negatively) impacted by this optimization
+objective.
+
+high_throughput: This setting provides the best possible throughput for DW
+transactions, by attempting to fully utilize the I/O capacity of the storage cells. It is
+the opposite of low_latency and as such, it will significantly (negatively) impact
+disk I/O latency.
+
+Balanced: This setting attempts to strike a balance between low latency and high
+throughput. This is done by limiting disk utilization for large I/O operations to a
+lesser degree than the low_latency objective described above. Use this objective
+when workloads are mixed and you have no applications that require extremely
+low latency.
+
+Auto: This setting allows IORM to determine the best optimization objective for
+your workload. Cellsrv continuously monitors the large/small I/O requests and
+applies the optimization method on a best-fit basis. If 75% or more of the I/O
+operations from a consumer group are small I/O (less than 128K), then it is
+considered to be a latency-oriented consumer group and is managed accordingly
+
+alter iormplan objective = low_latency
+list iormplan attributes objective
+
+
+*******************************************************************************************
+Intradatabase plan(Within Database)
+-----------------------------------
+
+How to create Database Resource Manager (DBRM) plans, 
+consumer groups, and resource plan directives; assign
+specific types of sessions to DBRM consumer groups; and enable a DBRM plan. 
+I will demonstrate using the DBMS_RESOURCE_MANAGER PL/SQL API and a database named AMBASA 
+to create three separate consumer groups, CG_A,CG_B, and CG_C. 
+
+CG:Consumer Group:Create-validate--submit
+Create---->Pending Area,consumer group,plan directive,create category
+
+Pending area:
+-------------
+Oracle provides a work space called the pending area for creating and
+modifying all the elements of a resource plan. 
+You can think of it as a loading zone where all the elements of your resource plan are staged and validated together before they are submitted to DBRM.
+There may be only one pending area in the database at any given time. If a pending area is already open when you try to create one, Oracle will display the error message, “ORA-29370: pending area is  already active.”
+
+The pending area is not a permanent fixture in the database. You must explicitly create it before you can create or modify resource plans. The following listing shows the typical process of creating a pending area, validating your changes, and then submitting it. After the pending area is submitted, it is automatically removed and a new one must be created if you want to perform any additional work on
+DBRM components. The following listing shows how the Pending Area is created, validated, and
+submitted.
+
+
+BEGIN
+DBMS_RESOURCE_MANAGER.CREATE_PENDING_AREA(); <----- Create the pending area
+<create, modify, delete your resource plan>
+DBMS_RESOURCE_MANAGER.VALIDATE_PENDING_AREA(); <----- Validate your work
+DBMS_RESOURCE_MANAGER.SUBMIT_PENDING_AREA(); <----- Install your work into DBRM
+END;
+/
+
+or
+BEGIN
+DBMS_RESOURCE_MANAGER.CLEAR_PENDING_AREA(); <----- Clear the pending area
+DBMS_RESOURCE_MANAGER.CREATE_PENDING_AREA(); <----- Create the pending area
+<create, modify, delete your resource plan>
+DBMS_RESOURCE_MANAGER.VALIDATE_PENDING_AREA(); <----- Validate your work
+DBMS_RESOURCE_MANAGER.SUBMIT_PENDING_AREA(); <----- Install your work into DBRM
+END;
+/
+
+
+
+The consumer group names and resource allocations are just selected for demonstration
+purposes; in a realistic environment, these would be configured based on your business requirements.
+
+1. Create a pending area, resource plan, consumer groups, and resource plan directives.
+
+In the following, we are creating a resource plan called ambasa_plan, 
+creating three consumer groups, and assigning 50%, 40%, and 10% CPU utilizations 
+to the CG_A,CG_B, and CG_C consumer groups, respectively:
+
+SQL> begin
+dbms_resource_manager.create_pending_area();
+dbms_resource_manager.create_plan(plan=>'ambasa_plan',comment=>'AMBASA Plan');
+dbms_resource_manager.create_consumer_group(consumer_group=>'CG_A',comment=>'CG_A');
+dbms_resource_manager.create_consumer_group(consumer_group=>'CG_B',comment=>'CG_B');
+dbms_resource_manager.create_consumer_group(consumer_group=>'CG_C',comment=>'CG_C');
+dbms_resource_manager.create_plan_directive(plan=>'ambasa_plan',
+comment=>'CG_A_50_L1',group_or_subplan=>'CG_A', mgmt_p1=>50);
+dbms_resource_manager.create_plan_directive(plan=>'ambasa_plan',
+comment=>'CG_B_40_L1',group_or_subplan=>'CG_B',mgmt_p1=>40);
+dbms_resource_manager.create_plan_directive(plan=>'ambasa_plan',
+comment=>'CG_C_10_L1',group_or_subplan=>'CG_C',mgmt_p1=>10);
+dbms_resource_manager.create_plan_directive(plan=>'ambasa_plan',
+comment=>'OTHER_GROUPS_L2',group_or_subplan=>'OTHER_GROUPS',mgmt_p1=>0,mgmt_p2=>100);
+dbms_resource_manager.validate_pending_area();
+dbms_resource_manager.submit_pending_area();
+end;
+/
+
+
+2. Assign Users(sessions) to the consumer groups. In the following example, we are assigning a USR1 Oracle user to the CG_A consumer group, USR2 to CG_B, and USR3 to the CG_C consumer group:
+
+SQL> begin
+dbms_resource_manager.create_pending_area();
+dbms_resource_manager.set_consumer_group_mapping(dbms_resource_manager.oracle_user,'USR1','CG_A');
+dbms_resource_manager.set_consumer_group_mapping(dbms_resource_manager.oracle_user,'USR2','CG_B');
+dbms_resource_manager.set_consumer_group_mapping(dbms_resource_manager.oracle_user,'USR3','CG_C');
+dbms_resource_manager_privs.grant_switch_consumer_group(
+grantee_name=>'USR1',consumer_group=>'CG_A',grant_option=>TRUE);
+dbms_resource_manager_privs.grant_switch_consumer_group(
+grantee_name=>'USR2',consumer_group=>'CG_B',grant_option=>TRUE);
+dbms_resource_manager_privs.grant_switch_consumer_group(
+grantee_name=>'USR3',consumer_group=>'CG_C',grant_option=>TRUE);
+dbms_resource_manager.submit_pending_area();
+end;
+/
+
+3. Enable your resource plan:
+SQL> alter system set resource_manager_plan='ambasa_plan' scope=both sid='*';
+
+*******************************************************************************************
+Prioritizing I/O Utilization by Database : Interdatabase IORM plan
+-------------------------------------------------------------------
+Problem
+You wish to define storage cell I/O resource allocations for your databases in order to prioritize I/O resources between different databases
+deployed on your Exadata Database Machine.
+
+Solution
+In this recipe, you will learn how to configure an Interdatabase IORM plan, which is typically the easiest IORM plan to conceptualize and
+implement.
+1. First, determine the percentage of I/O resource utilizations to assign to each database on your database machine. In this recipe, we will
+assume that a database named EDW will be allocated 55% of I/O resources, VISX will be allotted 25% of I/O resources, DWPRD will
+have 15%, and VISY will have the remaining 5% of I/O resources.
+
+2. Next, disable the currently enabled IORM plans on your storage cells, if applicable. In the following, we will use dcli to run the CellCLI
+
+alter iormplan inactive command to disable any enabled plans:
+
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group cellcli -e list iormplan
+cm01cel01: cm01cel01_IORMPLAN active
+cm01cel02: cm01cel02_IORMPLAN active
+cm01cel03: cm01cel03_IORMPLAN active
+
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group cellcli -e alter iormplan inactive
+cm01cel01: IORMPLAN successfully altered
+cm01cel02: IORMPLAN successfully altered
+cm01cel03: IORMPLAN successfully altered
+
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group cellcli -e list iormplan
+cm01cel01: cm01cel01_IORMPLAN inactive
+cm01cel02: cm01cel02_IORMPLAN inactive
+cm01cel03: cm01cel03_IORMPLAN inactive
+
+[oracle@cm01dbm01 iorm]$
+
+3. Now, create and enable an Interdatabase IORM plan using the following CellCLI command from dcli:
+
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group "cellcli -e \
+> alter iormplan objective=\'auto\', \
+> dbplan=\(\(name=edw,level=1,allocation=55\), \
+> \(name=visx,level=1,allocation=25\), \
+> \(name=dwprd,level=1,allocation=15\), \
+> \(name=visy,level=1,allocation=5\), \
+> \(name=other,level=2,allocation=100\)\)"
+cm01cel01: IORMPLAN successfully altered
+cm01cel02: IORMPLAN successfully altered
+cm01cel03: IORMPLAN successfully altered
+
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group "cellcli -e alter iormplan active"
+cm01cel01: IORMPLAN successfully altered
+cm01cel02: IORMPLAN successfully altered
+cm01cel03: IORMPLAN successfully altered
+[oracle@cm01dbm01 iorm]$
+
+In these commands we are doing the following:
+* We are first setting the IORM plan objective to auto, which instructs IORM to automatically tailor I/O scheduling based on workload.
+Exadata's IORM algorithms will monitor large and small I/O requests and adjust I/O scheduling based on the mix of low latency I/O requests
+(small) and high throughput (large) requests.
+* We are specifying the resource utilizations for each of our databases at level=1. You can specify utilization percentages at multiple
+levels in a similar manner to how you control resource utilization for consumer groups in a database resource management plan.
+
+* The other database allocation in the last line of our dbplan section shows an allocation of 100 at level=2. This is required to enable
+unnamed databases, in our Interdatabase IORM plan, to be able to issue I/O. If you do not specify an other database, the dbplan
+implementation will raise an error.
+* The second dcli command issues an alter iormplan active CellCLI command and is required to enable your plan.
+* We used dcli to implement the Interdatabase IORM plan to ensure that each storage cell had an identical plan definition. This is not
+required; you can choose to implement IORM plans on a per-cell basis and even create IORM plans with different definitions on different
+cells.
+How It Works
+Deploying Interdatabase IORM plans is achieved by using the alter iormplan command with the dbplan I/O resource utilization syntax;
+in other words, Interdatabase IORM is established with the dbplan directive in an alter iormplan statement.
+Database I/O resource utilizations are expressed as percentages, so in the example in the solution of this recipe, allocation=55 would
+equate to "allow this database to utilize 55% of I/O resources in the event that I/O is saturated on the storage cell." As Oracle's documentation
+states, IORM begins prioritizing and scheduling I/O requests as needed and not until I/O queues become full on the Exadata storage cell disks
+
+
+*******************************************************************************************
+Limiting I/O Utilization for Your Databases Interdatabase IORM plan i.e restrict a database's I/O utilization 
+-------------------------------------------------------------------------------------------------------------
+Problem
+You wish to restrict a database's I/O utilization to a specific utilization "ceiling" across your storage cells.
+
+
+Solution
+-----------
+In this , you will learn how to use the limit clause for an Interdatabase IORM Plan to impose a disk I/O utilization cap for specific databases.
+
+Select a target database to configure an I/O utilization percentage limit condition on and then issue the alter iormplan commands to
+
+introduce the limit. Notice the limit clause in bold below:
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group "cellcli -e \
+> alter iormplan objective=\'auto\', \
+> dbplan=\(\(name=edw,level=1,allocation=55,limit=70\), \
+> \(name=visx,level=1,allocation=25\), \
+> \(name=dwprd,level=1,allocation=15\), \
+> \(name=visy,level=1,allocation=5,limit=5\), \
+> \(name=other,level=2,allocation=100\)\)"
+
+
+cm01cel01: IORMPLAN successfully altered
+cm01cel02: IORMPLAN successfully altered
+cm01cel03: IORMPLAN successfully altered
+
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group "cellcli -e alter iormplan active"
+cm01cel01: IORMPLAN successfully altered
+cm01cel02: IORMPLAN successfully altered
+cm01cel03: IORMPLAN successfully altered
+[oracle@cm01dbm01 iorm]$
+
+In this dbplan directive, we are specifying an I/O resource utilization limit of 70% for the EDW database and 5% of the VISY database.
+How It Works
+
+Interdatabase IORM plan limits are a means to establish a resource utilization ceiling for specific databases. By default, IORM plans are only
+engaged in the event that cell disk I/O utilization is at capacity, so the I/O utilization percentages introduced for each database via the dbplan
+directive do not, by themselves, impose hard limits on I/O resource utilizations. In other words, IORM resource allocation directives govern and
+control I/O resource utilization in the event of I/O saturation, whereas limits impose a hard ceiling on cell disk I/O resource allotment regardless
+of whether I/O is saturated on the cell disks.
+The limit clause enforces a hard utilization ceiling on a per-database scope, restricting utilization to a fixed percentage of I/O resources
+whether or not the cell disks are saturated.
+
+*******************************************************************************************
+Controlling Smart Flash Cache and Smart Flash Logging with IORM
+----------------------------------------------------------------
+
+alter iormplan objective=\'auto\', \
+dbplan=\(\(name=edw,level=1,allocation=55\), \
+\(name=dwprd,level=1,allocation=15\), \
+\(name=visx,level=1,allocation=25\), \
+\(name=visy,level=1,allocation=5,flashcache=off,flashlog=off\), \
+\(name=other,level=2,allocation=100\)\)"
+
+
+The flashcache=off and flashlog=off IORM plan directives disable Smart Flash Cache and Smart Flash Logging.
+
+*******************************************************************************************
+
+*******************************************************************************************
+Category IORM plan:
+-------------------
+Category IORM plan Prioritizing I/O Utilization by Category of Resource Consumers 
+----------------------------------------------------------------------------------
+
+You wish to govern I/O resource utilization on your Exadata storage cells based on database resource categories, or classifications of
+consumer workload across multiple databases
+how to assign DBRM consumer groups to resource categories and use these categories to create a Category IORM plan.
+
+Category IORM implementation by using DBRM consumer groups
+
+
+1. First, create DBRM categories in each of your databases using the DBMS_RES0URCE_MANAGER PL/SQL API. In the following, we will
+
+create three resource categories, CAT_HIGH, CAT_L0W, and CAT_MEDIUM.
+
+SYS @ visx1> begin
+dbms_resource_manager.create_pending_area();
+dbms_resource_manager.create_category(category=>'CAT_HIGH', comment=>'CAT_HIGH');
+dbms_resource_manager.create_category(category=>'CAT_MEDIUM',comment=>'CAT_MEDIUM');
+dbms_resource_manager.create_category(category=>'CAT_LOW',comment=>'CAT_LOW');
+dbms_resource_manager.validate_pending_area();
+dbms_resource_manager.submit_pending_area();
+end;
+/
+
+2. After the DBRM categories are created, assign your DBRM resource consumer groups to the desired categories created in the
+previous step:
+SYS @ visx1> begin
+dbms_resource_manager.create_pending_area();
+dbms_resource_manager.update_consumer_group(consumer_group=>'CG_SHIPPING',
+new_category=>'CAT_HIGH');
+dbms_resource_manager.update_consumer_group(consumer_group=>'CG_FINANCE',
+new_category=>'CAT_MEDIUM');
+dbms_resource_manager.update_consumer_group(consumer_group=>'CG_REPORTING',
+new_category=>'CAT_LOW');
+dbms_resource_manager.validate_pending_area();
+dbms_resource_manager.submit_pending_area();
+end;
+/
+
+
+3. As an alternative to Step 2, you can assign categories to consumer groups at the time the consumer groups are created. The following
+is an example:
+dbms_resource_manager.create_consumer_group(consumer_group=>'CG_SHIPPING,
+comment=>'CG_SHIPPING',category=>'CAT_HIGH');
+
+4. Create a Category IORM plan using the alter iormplan CellCLI statement with the catplan directive. In the next example, we will
+use dcli to implement our Category IORM plan to ensure that each storage cell has an identical plan definition. Additionally, we will
+also delete any currently implemented Interdatabase IORM plan by providing an empty dbplan directive. 
+
+In our Category IORM plan, 
+
+we will allocate 100% of I/O resources to the CAT_HIGH category at level 1, 
+80% for CAT_MEDIUM at  level 2, 20% for CAT_LOW at level 2,
+and 100% of all other categories at level 3:
+
+
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group "cellcli -e \
+> alter iormplan objective=\'auto\', \
+> dbplan=\'\', \
+> catplan=\(\(name=CAT_HIGH,level=1,allocation=100\), \
+> \(name=CAT_MEDIUM,level=2,allocation=80\), \
+> \(name=CAT_LOW,level=2,allocation=20\), \
+> \(name=other,level=3,allocation=100\)\)"
+
+cm01cel01: IORMPLAN successfully altered
+cm01cel02: IORMPLAN successfully altered
+cm01cel03: IORMPLAN successfully altered
+
+[oracle@cm01dbm01 iorm]$ dcli -g ./cell_group "cellcli -e alter iormplan active"
+cm01cel01: IORMPLAN successfully altered
+cm01cel02: IORMPLAN successfully altered
+cm01cel03: IORMPLAN successfully altered
+[oracle@cm01dbm01 iorm]$
+
+How It Works
+Category IORM is implemented by issuing the alter iormplan CellCLI command with the catplan directive, as outlined in the solution
+of this recipe. In this recipe, we demonstrated the process of assigning resource categories to resource consumer groups in a DBRM plan,
+which is a required step if you wish your category classifications to be controlled with a Category IORM plan.
+Category IORM is the first classification of I/O resource allocation settings that IORM evaluates, and it can be enabled with or without
+Interdatabase IORM or even Intradatabase. As an Exadata DMA, you are allowed to create a category plan without named categories actually
+mapped to your database's resource consumer groups; in this case, each consumer group will fall under the OTHER category.
+While Interdatabase IORM is often the simplest and most often used IORM type, Category IORM combined with Interdatabase IORM provides
+the finest level of control of your Exadata storage cell I/O resources. Recipe 17-5 provides instructions for how to configure an IORM plan,
+which is defined by Oracle as a combination of Category IORM and Interdatabase IORM. 
+In the How , we will
+provide a more comprehensive discussion about how IORM prioritizes and schedules I/O to the cell disks, the order in which IORM plan types
+are evaluated in a complex IORM plan, and an overview of how IORM determines utilization restrictions and caps in the event of storage cell
+I/O saturation.
+*******************************************************************************************
+
+
+
+
+This was because of the allocated but unused I/O resources it inherited from the
+CG_A and/or CG_B categories at level 1.
+
+*******************************************************************************************
+The process flow for I/O requests with IORM can be described as follows:
+1. Each I/O request submitted by a database sends an iDB message to each storage cell. The iDB message includes the list of extents
+required to satisfy the operation as well as several pieces of metadata, including the database name associated with the request, the
+consumer group name (or "other" if DBRM is not in place), the resource and the resource category (or "other" if categories are not
+assigned to consumer groups).
+2. The I/O request is placed on an I/O queue, managed by cell services. Each cell disk maintain an I/O queue for each database and each
+consumer group per database.
+3. IORM intercepts the I/O requests from the I/O queues before placing them on a disk queue. If the disk queue(s) is full, IORM will evaluate
+the IORM plan rules for each incoming I/O request and place the I/O request in the proper, prioritized order on the disk queue.
+4. I/Os on the disk queues are processed in a FIFO basis; at this point, IORM would have already executed its logic to properly prioritize I/O
+requests.
+Without IORM, I/Os are serviced on each cell disk based on a first-in-first-out (FIFO) algorithm; whichever request is issued first gets priority,
+then the second request, followed by the third, and so on. When an IORM plan is enabled, it evaluates the rules configured in the IORM plan
+and prioritizes disk I/Os accordingly by placing them in the proper slot on the disk queue.
+IORM is an integral software component of the Exadata Storage Server software and runs within the Cell Services (cellsrv) software
+stack on each cell. This design allows for IORM to efficiently perform I/O prioritization in line with the I/O request; disk queues and disk I/O
+
+*******************************************************************************************
+{consumer_type}_{device type}_{metric}
+Where consumer_type represents the IORM resource group and is one of these:
+DB = Interdatabase IORM Plan
+CT = Category IORM Plan
+CG = Intradatabase IORM Plan
+And device_type is the type of storage that serviced the I/O request and is one of the following:
+FC = flash cache
+FD = Flash-based grid disk
+'' = If neither of the above, then the metric represents I/O to physical disks
+The last part of the attribute, {metric}, is the descriptive name of the metric. The metric name may be
+further qualified by SM’or LG, indicating that it represents small I/O requests or large I/O requests. For
+example:
+CG_FC_IO_RQ_LG: The total number of large I/O requests serviced from flash
+cache (FC), for DBRM consumer groups.
+CG_FD_IO_RQ_LG: The total number of large I/O requests serviced from flashbased
+grid disks (FD), for DBRM consumer groups.
+CG_IO_RQ_LG: The total number of large I/O requests serviced from physical disks
+(grid disks), for DBRM consumer groups.
+
+
+*******************************************************************************************
+Name Description
+{CG, CT, DB}_IO_BY_SEC Megabytes per second scheduled for this I/O consumer.
+{CG, CT, DB}_IO_LOAD Average I/O load for this I/O consumer.
+{CG, CT, DB}_IO_RQ_{SM, LG} The cumulative number of small or large I/O requests from
+this I/O consumer.
+{CG, CT, DB}_IO_RQ_{SM, LG}_SEC The number of small or large I/O requests per second issued
+by this I/O consumer.
+{CG, CT, DB}_IO_WT_{SM,LG} The cumulative time (in milliseconds) that I/O requests from
+the I/O consumer have spent waiting to be scheduled by
+IORM.
+{CG, CT, DB}_IO_WT_{SM,LG}_RQ Derived from {CG,CT,DB}_IO_WT_{SM,LG} above. It stores the
+average number of waits (in milliseconds) that I/O requests
+have spent waiting to be scheduled by IORM in the past
+minute. A large number of waits indicates that the I/O
+workload of this I/O consumer is exceeding its allocation. For
+lower-priority consumers this may be the desired effect. For
+high-priority consumers, it may indicate that more I/O should
+be allocated to the resource to meet the objectives of your
+organization.
+{CG, CT, DB}_IO_UTIL_{SM, LG} The percentage of total I/O resources consumed by this I/O
+consumer.
+
+All cumulative metrics above are reset to 0 whenever cellsrv is restarted, the IORM plan is enabled, or the
+IORM plan changes for that I/O consumer group. For example, if the Category IORM plan is changed,
+the following cumulative metrics will be reset:
+CT_IO_RQ_SM
+CT_IO_RQ_LG
+CT_IO_WT_SM
+CT_IO_WT_LG
+*******************************************************************************************
+The metrics we’re interested in for IORM monitoring have an objectType of IORM_DATABASE ,
+IORM_CATEGORY, and IORM_CONSUMER_GROUP.
+
+objectType:===>IORM_DATABASE(Interdatabase IORM Plan),IORM_CATEGORY, and IORM_CONSUMER_GROUP
+----------
+1)IORM_DATABASE(Interdatabase IORM Plan)
+2)IORM_CATEGORY(Catelogry IORM Plan)
+3)IORM_CONSUMER_GROUP(Intradatabase IORM Plan)
+
+
+These IORM metrics are further categorized using the metricObjectName attribute. Interdatabase
+resource plan metrics for the SCRATCH, and SNIFF databases are stored in detail records, where
+metricObjectName is set to the corresponding database name. In a similar fashion, metrics for Category IORM Plans are identified with a metricObjectName matching the Category name. IORM consumer
+groups are identified by a concatenation of the database name and the name of the DBRM consumer
+
+group. For example, the following listing shows how the I/O Resource Groups for our SCRATCH and SNIFF
+databases would be represented in the METRICCURRENT and METRICHISTORY objects
+
+*******************************************************************************************
+metricObjectName
+-----------------
+1)Interdatabase resource plan metrics for the SCRATCH, and SNIFF databases where
+metricObjectName is set to the corresponding database name
+2)Category IORM Plans are identified with a metricObjectName matching the Category name
+3)IORM consumer groups(Intradatabase resource plan metrics) are identified 
+by a concatenation of the database name and the name of the DBRM consumer group.
+
+objectType    metricObjectName
+----------------------- ----------------------------
+IORM_DATABASE SCRATCH
+IORM_DATABASE SNIFF
+
+IORM_CATEGORY APPS_CATEGORY
+IORM_CATEGORY BATCH_CATEGORY
+IORM_CATEGORY OTHER
+
+IORM_CONSUMER_GROUP SCRATCH.APPS
+IORM_CONSUMER_GROUP SCRATCH.MAINTENANCE
+IORM_CONSUMER_GROUP SCRATCH.REPORTS
+IORM_CONSUMER_GROUP SCRATCH.OTHER_GROUPS
+IORM_CONSUMER_GROUP SNIFF.APPS
+IORM_CONSUMER_GROUP SNIFF.MAINTENANCE
+IORM_CONSUMER_GROUP SNIFF.REPORTS
+IORM_CONSUMER_GROUP SNIFF.OTHER_GROUPS
+*******************************************************************************************
+
+IORM metrics provide insight into how cellsrv is allocating I/O resources among the consumers in your
+storage grid. Cellsrv keeps track of I/O requests broadly categorized as “small requests” and “large
+requests.” By comparing the large (LG) and small (SM) I/O requests in the IORM metrics, you can
+determine whether your databases lean more toward a DW workload (high throughput) or an OLTP
+workload (low latency). Oracle recently added a new option to the IORM plan called objective that tells
+IORM to optimize the cell disk I/O queues for low latency, high throughput, or something in between.
+The IORM metric IORM_MODE was added to capture the objective in use during the collection period. By
+comparing the IORM_MODE with the actual workload on your storage cells, you can determine whether the
+current IORM objective is appropriate or not. For example, if you find that a majority of I/O operations
+in the storage cells are greater than 128K and thus large (LG), then IORM should be set to optimize for
+high throughput (objective=high_throughput). Oracle uses a threshold of 75% large I/O when the IORM
+objective is set to auto, so that should give you an idea of what is meant by “majority.” For more
+information on the IORM objective and possible settings, refer to the Workload Optimization section
+earlier in this chapter. The IORM_MODE metric can be observed using the following CellCLI command
+******************************************************************************************
+Cellsrv keeps track of I/O requests broadly categorized as “small requests” and “large
+requests.” By comparing the large (LG) and small (SM) I/O requests in the IORM metrics,
+
+Oracle uses a threshold of 75% large I/O when the IORM
+objective is set to auto, so that should give you an idea of what is meant by “majority.”
+
+METRICHISTORYDAYS attribute of cell, (the default is 7 days).
+CellCLI> list cell attributes name, metricHistoryDays
+CellCLI> alter cell metricHistoryDays='14'
+CellCLI> list cell attributes name, metricHistoryDays
+
+
+IORM objective-->low_latency,high_throughput,balanced,auto
+CellCLI> list metriccurrent iorm_mode
+Possible settings for the IORM_MODE attribute are as follows:
+• 1, IORM objective was set to low_latency,
+• 2, IORM objective was set to balanced
+• 3, IORM mode was set to high_throughput
+
+
+
+To close out this recipe, we will offer a brief summary of IORM objectives. As you may have noticed in the 
+
+we used the objective=auto clause in our alter iormplan CellCLI statements. This is one of a number of IORM objectives that are allowed:
+* auto: Used to allow IORM to determine the best optimization method when prioritizing I/O requests. Exadata's Cell Services software
+(cellsrv) will continuously monitor your I/O utilization and, if greater than 75% of requests are small I/O requests less than 128 KB in
+size, IORM will treat the workload as a "low latency" workload. Otherwise, IORM will treat the I/O profile as a high throughput profile. The next bullets describe these terms in the context of IORM.
+
+* low_latency: Used to limit disk utilization to the greatest extent possible and is used when workloads require low I/O latency. This is typically configured for databases that are primarily characterized by OLTP workload profiles.
+
+* high_throughput: Used to maximize disk throughput and is typically configured for data warehouse environments.
+
+* balanced: Use when you have mixed workloads. Exadata limits disk utilization to the greatest extent possible for small I/O operations
+and provides greater utilization for large I/O operations.
+
+
+
+Obtaining IORM Plan Information
+
+
+Begin by running the following CellCLI command from one of your storage cells:
+CellCLI> list iormplan detail
+name: cm01cel01_IORMPLAN
+catPlan: name=CAT_HIGH,level=1,allocation=100
+name=CAT_MEDIUM,level=2,allocation=80
+name=CAT_LOW,level=2,allocation=20
+name=other,level=3,allocation=100
+dbPlan: name=edw,level=1,allocation=55
+name=visx,level=1,allocation=25
+name=dwprd,level=1,allocation=15
+name=visy,level=1,allocation=5
+name=other,level=2,allocation=100
+objective: auto
+status: active
+CellCLI>
+
+
+
+
+
+
+*******************************************************************************************
+With a representative database workload running and after your IORM plan has been created, use the list metriccurrent or list
+metrichistory CellCLI command to report your current or historical IORM metrics. In the following, we will display the current I/O throughput
+statistics, measured in megabytes per second, for each category, database, and consumer group using the CT_IO_BY_SEC,DB_IO_BY_SEC, and CG_IO_BY_SEC metrics, respectively:
+
+CellCLI> list metricdefinition where objectType='IORM_CATEGORY' attributes name,description
+CellCLI> list metricdefinition where objectType='IORM_DATABASE' attributes name,description
+CellCLI> list metricdefinition where objectType='IORM_CONSUMER_GROUP' attributes name,description
+
+dcli -c cm01cel01 cellcli -e list metriccurrent where name=CT_IO_BY_SEC
+dcli -c cm01cel01 cellcli -e list metriccurrent where name=DB_IO_BY_SEC
+dcli -c cm01cel01 cellcli -e list metriccurrent where name=CG_IO_BY_SEC
+
+*******************************************************************************************
+As you can see, the list metriccurrent command for the *WT_LG_RO* metrics will display the average I/O wait time per request, and
+under periods of high I/O load, you will see that IORM types with higher resource allocations will show smaller wait times per request than the
+types with lower resource allocations
+
+dcli -c cm01cel01 cellcli -e list metriccurrent where name=CT_IO_WT_LG_RQ
+dcli -c cm01cel01 cellcli -e list metriccurrent where name=DB_IO_WT_LG_RQ
+dcli -c cm01cel01 cellcli -e list metriccurrent where name=CG_IO_WT_LG_RQ
+*******************************************************************************************
+
+AWR Intensity Report:spawrio.sql
+
+Problem Scenario #1 – HDD are busy but flash is idle
+Common DW problem scenario:
+HDD disks are busy but flash is idle due to large reads issued by smart scans bypassing flash cache.
+Solution:
+Use flash for KEEP objects so large reads can be offloaded to flash.
+Execute the following steps:
+1. Run I/O intensity report @?/rdbms/admin/spawrio
+2. Ensure the total size of KEEP objects does not overwhelm flash cache size.
+a. Be aware that allowed KEEP size is restricted to 80% of flash cache size.
+b. Target small tables with lots of reads for KEEP.
+3. Mark each candidate table as KEEP.
+4. Repeat workload and verify read I/O offload to flash.
+
+How to evaluate total KEEP size
+
+
+                                                       Obj.                                     Space        IO
+Aggregation   Id                                       Type       Tablespace        # Samples     GB     Intensity  % Activity
+------------- ---------------------------------------- ---------- ---------- ---------------- ---------- ---------- ----------
+by Wait Class User I/O                                                                    563                             83.9
+              on cpu                                                                       60                              8.9
+              System I/O                                                                   37                              5.5
+              Other                                                                         5                              0.7
+              Commit                                                                        4                              0.6
+              Scheduler                                                                     2                              0.3
+
+by Segment    SYS.EMP_S                                TABLE      SAMPLE                  524        10.0   41,275.1       78.1
+              SYS.KOTTD$                               TABLE      SYSTEM                    6        60.0   98,304.0        0.9
+              SCOTT.EMP		                                                            2        30.0   32,768.0        0.3
+
+by Tablespace                                                     SAMPLE                  524        0.1    5,365.8       78.1
+                                                                  SYSAUX                   10        0.4       25.6        1.5
+
+Total KEEP size = 10 + 60 + 30 = 100 GB
+Default Flash Cache size per cell = 384GB
+
+How to mark objects as KEEP
+Run the following SQL statements:
+ALTER TABLE AMBASA.EMP MODIFY PARTITION P1 STORAGE (CELL_FLASH_CACHE KEEP);
+ALTER TABLE AMBASA.DEPT STORAGE (CELL_FLASH_CACHE KEEP);
+
+set lines 200
+col cell_flash_cache for a20
+
+select table_name,cell_flash_cache,owner from dba_tables where owner='SCOTT';
+
+SQL> SQL> select table_name,cell_flash_cache,owner from dba_tables where owner='SCOTT';
+
+TABLE_NAME                     CELL_FLASH_CACHE     OWNER
+------------------------------ -------------------- ------------------------------
+EMP_QUERYH                     DEFAULT              SCOTT
+EMP_QUERYL                     DEFAULT              SCOTT
+EMP_ARCHIVEL                   DEFAULT              SCOTT
+EMP_ARCHIVEH                   DEFAULT              SCOTT
+PEOPLE                         DEFAULT              SCOTT
+DEPT                           DEFAULT              SCOTT
+EMP                            DEFAULT              SCOTT
+SALGRADE                       DEFAULT              SCOTT
+EMP_QUERY                      DEFAULT              SCOTT
+EMP_NORMAL                     DEFAULT              SCOTT
+BONUS                          DEFAULT              SCOTT
+
+11 rows selected.
+
+SQL> ALTER TABLE SCOTT.DEPT STORAGE (CELL_FLASH_CACHE KEEP);
+
+Table altered.
+
+SQL> select table_name,cell_flash_cache,owner from dba_tables where owner='SCOTT';
+
+TABLE_NAME                     CELL_FLASH_CACHE     OWNER
+------------------------------ -------------------- ------------------------------
+EMP_QUERYH                     DEFAULT              SCOTT
+EMP_QUERYL                     DEFAULT              SCOTT
+EMP_ARCHIVEL                   DEFAULT              SCOTT
+EMP_ARCHIVEH                   DEFAULT              SCOTT
+PEOPLE                         DEFAULT              SCOTT
+DEPT                           KEEP                 SCOTT
+EMP                            DEFAULT              SCOTT
+SALGRADE                       DEFAULT              SCOTT
+EMP_QUERY                      DEFAULT              SCOTT
+EMP_NORMAL                     DEFAULT              SCOTT
+BONUS                          DEFAULT              SCOTT
+
+11 rows selected.
+
+SQL> ALTER TABLE SCOTT.DEPT STORAGE (CELL_FLASH_CACHE DEFAULT);
+
+Table altered.
+
+SQL> select table_name,cell_flash_cache,owner from dba_tables where owner='SCOTT';
+
+TABLE_NAME                     CELL_FLASH_CACHE     OWNER
+------------------------------ -------------------- ------------------------------
+EMP_QUERYH                     DEFAULT              SCOTT
+EMP_QUERYL                     DEFAULT              SCOTT
+EMP_ARCHIVEL                   DEFAULT              SCOTT
+EMP_ARCHIVEH                   DEFAULT              SCOTT
+PEOPLE                         DEFAULT              SCOTT
+DEPT                           DEFAULT              SCOTT
+EMP                            DEFAULT              SCOTT
+SALGRADE                       DEFAULT              SCOTT
+EMP_QUERY                      DEFAULT              SCOTT
+EMP_NORMAL                     DEFAULT              SCOTT
+BONUS                          DEFAULT              SCOTT
+
+11 rows selected.
+
+SQL>
+
+*******************************************************************************************
+
+./metric_iorm.pl
+… Additional database detail omitted for brevity
+Database: ABC
+Utilization: Small=0% Large=4%
+Flash Cache: IOPS=6.1
+Throughput: MBPS=110
+Small I/O's: IOPS=4.7 Avg qtime=5.1ms
+Large I/O's: IOPS=108 Avg qtime=347ms
+Consumer Group: CG_ADHOC
+Utilization: Small=0% Large=1%
+Flash Cache: IOPS=0.0
+Throughput: MBPS=33
+Small I/O's: IOPS=0.2 Avg qtime=22.9ms
+Large I/O's: IOPS=33.1 Avg qtime=1111ms
+… Other consumer groups omitted for brevity
+Consumer Group: CG_FINANCE
+Utilization: Small=0% Large=1%
+Flash Cache: IOPS=0.0
+Throughput: MBPS=44
+Small I/O's: IOPS=2.1 Avg qtime=8.1ms
+Large I/O's: IOPS=43.0 Avg qtime=5.2ms
+Consumer Group: CG_PROJECTS
+Utilization: Small=0% Large=1%
+Flash Cache: IOPS=0.0
+Throughput: MBPS=32
+Small I/O's: IOPS=0.4 Avg qtime=3.6ms
+Large I/O's: IOPS=31.7 Avg qtime=12.7ms
+… Other consumer groups omitted for brevity
+DISK LATENCY METRICS
+Avg small read latency: 37.70 ms
+Avg small write latency: 0.86 ms
+Avg large read latency: 79.87 ms
+Avg large write latency: 0.00 ms
+[root@cm01cel01 ~]#
+
+
+Disk Status Definitions
+
+Status Description
+Normal -----------> The drive is healthy.
+Predictive Failure------------> The disk is still working but likely to fail soon and should be replaced as soon as
+possible.
+Poor Performance--------------> The disk is exhibiting extremely poor performance and should be replaced.
+
+**************************************************************************************************************************
+Poor Performance:
+-----------------
+CellCLI> list physicaldisk where diskType=HardDisk AND status=critical detail
+CellCLI> calibrate
+Calibration will take a few minutes...
+Aggregate random read throughput across all hard disk luns: 1025 MBPS
+Aggregate random read throughput across all flash disk luns: 3899.18 MBPS
+Aggregate random read IOs per second (IOPS) across all hard disk luns: 1707
+Aggregate random read IOs per second (IOPS) across all flash disk luns: 145158
+
+**************************************************************************************************************************
+
+SET SERVEROUTPUT ON
+DECLARE
+lat INTEGER;
+iops INTEGER;
+mbps INTEGER;
+BEGIN
+-- DBMS_RESOURCE_MANAGER.CALIBRATE_IO (<DISKS>, <MAX_LATENCY>, iops, mbps, lat);
+DBMS_RESOURCE_MANAGER.CALIBRATE_IO (&no_of_disks, 10, iops, mbps, lat);
+DBMS_OUTPUT.PUT_LINE ('max_iops = ' || iops);
+DBMS_OUTPUT.PUT_LINE ('latency = ' || lat);
+dbms_output.put_line('max_mbps = ' || mbps);
+end;
+/
+select * from V$IO_CALIBRATION_STATUS;
+
+select to_char(start_time,'dd-mon-yy') start_time ,
+MAX_IOPS, MAX_MBPS, MAX_PMBPS, LATENCY, NUM_PHYSICAL_DISKS
+from DBA_RSRC_IO_CALIBRATE;
+
+**************************************************************************************************************************
+
+Monitoring Cells with Active Requests
+----------------------------------------
+
+
+CellCLI> list activerequest
+0 OTHER_GROUPS EDW "Smart scan" "Predicate Pushing" "Queued for Predicate Disk"
+0 OTHER_GROUPS EDW "Smart scan" PredicateFilter "Queued for Filtered Backup"
+0 OTHER_GROUPS EDW "Smart scan" "Predicate Pushing" "Predicate Computing
+
+
+
+CellCLI> list activerequest where ioReason="Smart scan" attributes dbName,ioReason,ioType,requestState
+DB 	ioReason 	ioType 			requestState 
+EDW "Smart scan" "Predicate Pushing" "Predicate Computing"
+EDW "Smart scan" "Predicate Pushing" "Queued for Predicate Disk"
+EDW "Smart scan" PredicateFilter "Queued for Filtered Backup"
+EDW "Smart scan" "Predicate Pushing" "Predicate Computing"
+EDW "Smart scan" PredicateFilter "Queued for Filtered Backup"
+EDW "Smart scan" PredicateFilter "Queued for Filtered Backup"
+EDW "Smart scan" PredicateFilter "Queued for Filtered Backup"
+
+CellCLI> describe activerequest
+name
+asmDiskGroupNumber
+
+* The dbName attribute contains the name of your database and is useful when you wish to query I/O information for specific databases.
+* The ioReason describes the reason for the I/O request and is useful when you wish to query on Smart Scan operations, block I/O
+requests, and so forth.
+* The ioType attribute lists the specific I/O operation being performed; the values will vary based on the ioReason attribute.
+* The requestState attribute displays the current state of the I/O request. Here, large numbers of queued I/O requests could
+indicate I/O performance bottlenecks on your storage cell.
+* The consumerGroupName attribute will display the associated consumer group for the I/O request and, along with dbName, it provides
+insight into the different types of sessions performing I/O requests.
+* The sqlID attribute can be used to measure I/O operations from specific SQL cursors.
+* The objectNumber attribute represents the object number that the I/O request is servicing.
+* The sessionNumber and sessionSerNumber attributes represent the unique session identifier information from a specific database
+instance.
+
+
+**************************************************************************************************
+
+Listing Storage Server Metrics
+
+
+CellCLI> describe metricdefinition
+name
+description
+metricType
+objectType
+persistencePolicy
+unit
+CellCLI>
+Next, run the list metricdefinition command to display the available storage server metrics:
+CellCLI> list metricdefinition
+CD_IO_BY_R_LG
+CD_IO_BY_R_LG_SEC
+CD_IO_BY_R_SM
+
+With recent versions of Exadata, you will have nearly 200 metrics available to you. Each of these metrics tracks information for different components in your Exadata Storage Servers. The previous output shows a single attribute, or column—this corresponds to the name attribute in the metricdefinition object. You can list information about a specific metric using the list command with the metric name supplied,
+as listed:
+
+CellCLI> list metricdefinition CL_CPUT
+CL_CPUT
+CellCLI>
+
+CellCLI> list metricdefinition CL_CPUT detail
+name: CL_CPUT
+description: "Percentage of time over the previous minute that the system CPUs were
+not idle."
+metricType: Instantaneous
+objectType: CELL
+unit: %
+CellCLI>
+
+
+Metric Object Types
+--------------------
+Each Exadata Storage Server metric is associated with a specific object type and is assigned to an objectType attribute. The
+objectType attribute specifies which Exadata component the metric is related to. To display a list of distinct metric objectType
+attributes, run the following cellcli command:
+[celladmin@cm01cel01 ~]$ cellcli -e list metricdefinition attributes objectType|sort -u
+CELL
+CELLDISK
+CELL_FILESYSTEM
+FLASHCACHE
+FLASHLOG
+GRIDDISK
+HOST_INTERCONNECT
+IORM_CATEGORY
+IORM_CONSUMER_GROUP
+IORM_DATABASE
+[celladmin@cm01cel01 ~]$
+
+
+Each objectType name is relatively self-explanatory. Using the CL_CPUT metric example above, you can expand on this to list each metric
+associated with the CELL objectType attribute by adding the following where objectType clause:
+
+
+
+CellCLI> list metricdefinition attributes name,metricType,description where objectType='CELL'
+CL_BBU_CHARGE Instantaneous "Disk Controller Battery Charge"
+CL_BBU_TEMP Instantaneous "Disk Controller Battery Temperature"
+CL_CPUT Instantaneous "Percentage of time over the previous minute that the system
+CPUs were not idle."
+CL_CPUT_CS Instantaneous "Percentage of CPU time used by CELLSRV"
+CL_CPUT_MS Instantaneous "Percentage of CPU time used by MS"
+
+The metriccurrent Object
+-------------------------
+
+Now that you have an understanding of the metricdefinition object and its attributes, run the following describe command to show the
+object definition of the metriccurrent object:
+CellCLI> describe metriccurrent
+name
+alertState
+collectionTime
+metricObjectName
+metricType
+metricValue
+objectType
+CellCLI>
+
+
+
+The metriccurrent object contains observable metrics as of the current time; in other words, it stores information about each metric as of
+the time the object is queried. Using the same CL_CPUT metric provided above, run the following command to display your current storage
+cell CPU utilization:
+CellCLI> list metriccurrent CL_CPUT
+CL_CPUT cm01cel01 0.4 %
+
+We see the current CPU utilization of our storage cell is 0.4%. Next, add the detail condition to your list command to display each
+metriccurrent attribute:
+CellCLI> list metriccurrent CL_CPUT detail
+name: CL_CPUT
+alertState: normal
+collectionTime: 2012-10-25T00:15:01-04:00
+metricObjectName: cm01cel01
+metricType: Instantaneous
+metricValue: 0.9 %
+objectType: CELL
+CellCLI>
+The detailed output shows some additional attributes:
+n alertState is the current alert status of the metric; valid values include normal, warning, and critical.
+
+n collectionTime is the time at which the metric was collected.
+n metricValue represents the value of the metric; in the previous case, it displays 0.9%.
+n metricType represents the unit, or scope, upon which the metric's metricValue is based. Valid values for metricType include
+Instantaneous (typically presented as a percentage or raw data value), Cumulative, Rate (units per time interval), or
+Transition.
+n metricObjectName represents the specific object to which the metric is scoped; for example, for each CELL objectType, the
+metricObjectName will be the name of the storage cell.
+n objectType represents the type of the metric.
+
+The metrichistory Object
+-------------------------
+The metrichistory object contains, by default, seven days of historical metrics sampled over one-minute intervals. To display the attributes of the metrichistory object, use the following describe command in CellCLI:
+CellCLI> describe metrichistory
+name
+alertState
+collectionTime
+metricObjectName
+metricType
+metricValue
+metricValueAvg
+metricValueMax
+metricValueMin
+objectType
+CellCLI>
+You will notice that the metrichistory object contains the same attributes as the metriccurrent object, plus average, minimum, and
+maximum values of the metricValue attribute. Using the same CL_CPUT metric demonstrated previously, run the following CellCLI
+command to display your historical storage server CPU utilization:
+
+*******************************************************************************************************************
+Configuring Thresholds for Cell Metrics
+-----------------------------------------
+
+You wish to create custom thresholds for specific Exadata metrics in order to generate alerts tailored to meet your business requirements
+Solution
+In this recipe, you will learn how to create a custom metric threshold to trigger alerts based on a desired condition. This recipe will walk you
+through the steps to create a single threshold on a specific alert and show you how to create the threshold, validate the threshold configuration
+using the list threshold CellCLI command, and confirm that the threshold is working as planned.
+1. First, determine which metric you wish to customize the metric threshold for. In the following example, we will use the DB_IO_UTIL_LG
+metric, which captures the I/O utilization for a specific database on your Exadata Database Machine.
+2. Next, validate whether custom thresholds are configured by using the list threshold CellCLI command. You will see that we
+currently have no thresholds created:
+CellCLI> list threshold
+CellCLI>
+3. Use the list metriccurrent CellCLI command to determine the metricObjectName to create the threshold for. Since the
+DB_IO_UTIL_LG metric is scoped to an Oracle database name, you will see one or more database names in the
+metricObjectName attribute:
+CellCLI> list metriccurrent DB_IO_UTIL_LG attributes name,metricObjectName
+DB_IO_UTIL_LG DWPRD
+DB_IO_UTIL_LG EDW
+DB_IO_UTIL_LG VISX
+DB_IO_UTIL_LG VISY
+DB_IO_UTIL_LG _OTHER_DATABASE_
+CellCLI>
+4. Above, we see four distinct named databases. Once you have decided which metricObjectName to create your threshold for, issue
+the following command to create your threshold:
+CellCLI> create threshold DB_IO_UTIL_LG.EDW -
+> warning=50,critical=70,comparison='>',occurrences=2,observation=5
+Threshold DB_IO_UTIL_LG.EDW successfully created
+CellCLI>
+In this command:
+n The first line creates a threshold on the DB_IO_UTIL_LG metric for the EDW database. The hyphen (-) at the end of the first line
+represents the line continuation character.
+n In the second line, we're specifying to trigger a warning condition when the CPU utilization for the EDW database exceeds 50% and
+a critical message when it exceeds 70%.
+n In the second line, the occurrences attribute signifies to raise an alert if two consecutive alerts are raised.
+n Also in the second line, the observation attribute indicates the number of measurements over which the measured values are
+averaged. In other words, in this case an alert would be raised if more than two conditions exceeded the threshold over five
+measurements.
+5. To validate your threshold, run the list threshold command from CellCLI:
+CellCLI> list threshold detail
+name: DB_IO_UTIL_LG.EDW
+comparison: >
+critical: 70.0
+observation: 5
+occurrences: 2
+warning: 50.0
+CellCLI>
+6. Assuming you have a workload condition that causes the measurements for this metric to be exceeded, run the list
+metriccurrent and list alerthistory command to display the alerts generated from this current threshold:
+CellCLI> list metriccurrent DB_IO_UTIL_LG where metricObjectName='EDW'
+DB_IO_UTIL_LG EDW 72 %
+CellCLI> list alerthistory
+1_1 2012-10-27T01:06:01-04:00 warning "The warning threshold for the
+following metric has been crossed.Metric Name : DB_IO_UTIL_LG Metric Description :
+Percentage of disk resources utilized by large requests from this database Object Name :
+EDW Current Value : 72.0 % Threshold Value : 50.0 % "
+CellCLI>
+As you can see, I/O workload from our EDW database caused the alert to be raised based on the threshold we created.
+7. If you wish to drop the threshold, use the following drop threshold command in CellCLI:
+CellCLI> drop threshold DB_IO_UTIL_LG.EDW
+Threshold DB_IO_UTIL_LG.EDW successfully dropped
+CellCLI>
+
+How It Works
+Exadata comes delivered with a number of seeded alerts and their corresponding thresholds. To adjust the metric threshold, the Exadata
+DMA uses the CellCLI create threshold command. If a metric value exceeds your user-defined thresholds, Exadata will trigger an alert.
+Metrics can be associated with warning and critical thresholds. Thresholds relate to extreme values in the metric and may indicate a problem
+or other event of interest to the Exadata DMA.
+Thresholds are supported on a number of cell disk, grid disk, cell server, and I/O Resource Management utilization metrics and apply to
+Stateful alerts. The CellCLI list alertdefinition command lists all the metrics for which thresholds can be set:
+CellCLI> list alertdefinition where alertType='Stateful'
+StatefulAlert_CD_IO_BY_R_LG
+StatefulAlert_CD_IO_BY_R_LG_SEC
+… Additional stateful alerts omitted
+We recommend following these guidelines when creating metric thresholds:
+n The threshold name needs to be of the format name.metricObjectName, where name is the name of the metric and
+metricObjectName is the scope to which the metric applies.
+n Use the list metriccurrent or list metrichistory command to validate the metricObjectName for your threshold.
+n Unless your goal is simply to test thresholds and alerts, do not arbitrarily create metric thresholds without a business case. We recommend
+aligning your metric threshold strategy with known monitoring needs and using list metrichistory to determine metric names,
+collection times, and measurement values as your inputs to the warning, critical, occurrences, and observations
+attributes.

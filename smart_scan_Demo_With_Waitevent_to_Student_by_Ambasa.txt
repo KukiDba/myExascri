@@ -1,0 +1,502 @@
+SQL> SET lines 200
+SQL> SET pages 1000
+SQL> SET SQLBL ON
+SQL> SELECT *
+  2       FROM
+  3         (SELECT status,
+  4           sid,session_serial#,username,
+  5           sql_id,
+         sql_exec_id,
+  6    7           TO_CHAR(sql_exec_start,'dd-mon-yyyy hh24:mi:ss') AS sql_exec_start,
+         ROUND(elapsed_time/1000000)                      AS "El  8  apsed (s)",
+  9           ROUND(cpu_time    /1000000)                      AS "CPU (s)",
+         buffer_gets,
+         ROUND(physical_read_bytes /(1024*1024)) AS "Phys reads (MB)",
+ 10   11   12           ROUND(physical_write_bytes/(1024*1024)) AS "Phys writes (MB)"
+ 13         FROM v$sql_monitor
+ 14         ORDER BY sql_exec_start desc
+ 15         )
+ 16       WHERE rownum<=20;
+
+
+
+STATUS                     SID SESSION_SERIAL# USERNAME             SQL_ID        SQL_EXEC_ID SQL_EXEC_START       Elapsed (s)    CPU (s) BUFFER_GETS Phys reads (MB) Phys writes (MB)
+------------------- ---------- --------------- -------------------- ------------- ----------- -------------------- ----------- ---------- ----------- --------------- ----------------
+EXECUTING                    1              13 SYS                  9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0          13               0     0
+EXECUTING                   35              23                      9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0     0
+EXECUTING                   55               9                      9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0     0
+EXECUTING                   51               7                      9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0     0
+EXECUTING                   56               9                      9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0     0
+EXECUTING                   53              17                      9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0     0
+EXECUTING                   52              15                      9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0     0
+EXECUTING                   58              11                      9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0     0
+EXECUTING                   64              19                      9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0     0
+DONE                        64               7 SYS                  6gvch1xu9ca3g    16777217 06-feb-2016 14:06:11          38          2       32277              10     0
+DONE (ALL ROWS)             58               3                      d5j5mc8v1fqqw    16777216 06-feb-2016 14:05:43           4          0         231               2     0
+DONE (ALL ROWS)             36               7                      d5j5mc8v1fqqw    16777216 06-feb-2016 14:05:43           5          0         205               2     0
+DONE (ALL ROWS)             46               7                      d5j5mc8v1fqqw    16777216 06-feb-2016 14:05:43           4          0         205               2     0
+DONE (ALL ROWS)             63               1                      9nv0wp08djka5    16777216 06-feb-2016 14:05:38           4          0         270               2     0
+DONE (ALL ROWS)             64               1                      9nv0wp08djka5    16777216 06-feb-2016 14:05:38           4          0         368               2     0
+DONE (ALL ROWS)             62               3                      9nv0wp08djka5    16777216 06-feb-2016 14:05:38           4          0         322               2     0
+DONE (ALL ROWS)             60               1                      6hma5bf351dpu    16777216 06-feb-2016 14:05:34           5          0         180               2     0
+DONE (ALL ROWS)             59               1                      6hma5bf351dpu    16777216 06-feb-2016 14:05:34           5          0         161               2     0
+DONE (ALL ROWS)             58               1                      6hma5bf351dpu    16777216 06-feb-2016 14:05:34           5          0         167               1     0
+DONE                        53               1 SYS                  5zruc4v6y32f9    16777216 06-feb-2016 14:05:14          53          7      365929              65     1
+
+20 rows selected.
+
+SQL> SQL> SQL> SET lines 200
+SET pages 1000
+SQL> SQL> SET SQLBL ON
+col username for a7
+SQL> SQL> col sid for 999
+SQL> SELECT *
+  2       FROM
+  3         (SELECT status,
+         sid,session_serial#,username,
+  4    5           sql_id,
+  6           sql_exec_id,
+         TO_CHAR(sql_exec_start,'dd-mon-yyyy hh24:mi:ss') AS sql_exec_start,
+  7    8           ROUND(elapsed_time/1000000)                      AS "Elapsed (s)",
+         ROUND(cpu_time    /1000000)                      AS "CP  9  U (s)",
+ 10           buffer_gets,
+ 11           ROUND(physical_read_bytes /(1024*1024)) AS "Phys reads (MB)",
+         ROUND(physical_write_bytes/(1024*1024)) AS "Phys writes (MB)"
+ 12   13         FROM v$sql_monitor
+       where status not like '%DONE%'
+ 14   15         ORDER BY sql_exec_start desc
+ 16         )
+ 17  WHERE rownum<=20;
+
+STATUS               SID SESSION_SERIAL# USERNAM SQL_ID        SQL_EXEC_ID SQL_EXEC_START       Elapsed (s)    CPU (s) BUFFER_GETS Phys reads (MB) Phys writes (MB)
+------------------- ---- --------------- ------- ------------- ----------- -------------------- ----------- ---------- ----------- --------------- ----------------
+EXECUTING              1              13 SYS     9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0          13               0                0
+EXECUTING             64              19         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             58              11         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             52              15         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             53              17         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             56               9         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             51               7         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             55               9         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             35              23         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+
+9 rows selected.
+
+SQL> !vi sqlmonstarte.sql
+
+SQL> @sqlmonstarte
+
+STATUS               SID SESSION_SERIAL# USERNAM SQL_ID        SQL_EXEC_ID SQL_EXEC_START       Elapsed (s)    CPU (s) BUFFER_GETS Phys reads (MB) Phys writes (MB)
+------------------- ---- --------------- ------- ------------- ----------- -------------------- ----------- ---------- ----------- --------------- ----------------
+EXECUTING              1              13 SYS     9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0          13               0                0
+EXECUTING             64              19         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             58              11         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             52              15         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             53              17         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             56               9         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             51               7         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             55               9         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+EXECUTING             35              23         9nv0wp08djka5    16777218 06-feb-2016 14:08:54           0          0           0               0                0
+
+9 rows selected.
+
+SQL> @sqlmonsid1
+Enter Session ID : 1
+Enter Session Serial# : 13
+old   6:  where sid=&v_sid
+new   6:  where sid=1
+old   7:    and session_serial#=&v_serial
+new   7:    and session_serial#=13
+
+          KEY||SQL_ID       ||SQL_EXEC_ID||SQL_EXEC_START     ||CHILD_AD
+-------------||-------------||-----------||-------------------||--------
+  42949672990||9nv0wp08djka5||   16777218||06/02/2016 14:08:54||3DD99F68
+
+Enter the SQL_ID to look at : 9nv0wp08djka5
+Enter the associated SQL_EXEC_ID to look at : 16777218
+Enter the Execution Start Date (DD/MM/YYYY HH24:MI:SS) :
+old  13:  and m.sql_id='&&v_sql_id'
+new  13:  and m.sql_id='9nv0wp08djka5'
+old  14:  and m.sql_exec_id=&&v_sql_exec_id
+new  14:  and m.sql_exec_id=16777218
+old  15:  and m.sql_exec_start=to_date('&&v_sql_exec_start',
+new  15:  and m.sql_exec_start=to_date('',
+
+no rows selected
+
+old   3:                 sql_id=>'&&v_sql_id',
+new   3:                 sql_id=>'9nv0wp08djka5',
+old   4:                 sql_exec_id=>&&v_sql_exec_id,
+new   4:                 sql_exec_id=>16777218,
+old   5:                 sql_exec_start=>to_date('&&v_sql_exec_start',
+new   5:                 sql_exec_start=>to_date('',
+
+PL/SQL procedure successfully completed.
+
+
+V_REPORT
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+select count(*) from emp_s
+
+Global Information
+------------------------------
+ Status              :  EXECUTING
+ Instance ID         :  1
+ Session             :  SYS (1:13)
+ SQL ID              :  9nv0wp08djka5
+ SQL Execution ID    :  16777218
+ Execution Started   :  02/06/2016 14:08:54
+ First Refresh Time  :  02/06/2016 14:08:54
+ Last Refresh Time   :  02/06/2016 14:08:54
+ Duration            :  313s
+ Module/Action       :  sqlplus@database (TNS V1-V3)/-
+ Service             :  SYS$USERS
+ Program             :  sqlplus@database (TNS V1-V3)
+
+Global Stats
+=========================================
+| Elapsed |   Cpu   |  Other   | Buffer |
+| Time(s) | Time(s) | Waits(s) |  Gets  |
+=========================================
+|    0.01 |    0.00 |     0.01 |     13 |
+=========================================
+
+Parallel Execution Details (DOP=8 , Servers Allocated=8)
+==========================================================================================================
+|      Name      | Type  | Server# | Elapsed |   Cpu   |  Other   | Buffer |         Wait Events         |
+|                |       |         | Time(s) | Time(s) | Waits(s) |  Gets  |         (sample #)          |
+==========================================================================================================
+| PX Coordinator | QC    |         |    0.01 |    0.00 |     0.01 |     13 |                             |
+| p000           | Set 1 |       1 |         |         |          |        | cell smart table scan (244) |
+| p001           | Set 1 |       2 |         |         |          |        | cell smart table scan (244) |
+| p002           | Set 1 |       3 |         |         |          |        | cell smart table scan (244) |
+| p003           | Set 1 |       4 |         |         |          |        | cell smart table scan (244) |
+| p004           | Set 1 |       5 |         |         |          |        | cell smart table scan (244) |
+| p005           | Set 1 |       6 |         |         |          |        | cell smart table scan (244) |
+| p006           | Set 1 |       7 |         |         |          |        | cell smart table scan (244) |
+| p007           | Set 1 |       8 |         |         |          |        | cell smart table scan (244) |
+==========================================================================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=418003122)
+=========================================================================================================================================================
+| Id   |            Operation             |   Name   |  Rows   | Cost |   Time    | Start  | Execs |   Rows   | Activity |       Activity Detail        |
+|      |                                  |          | (Estim) |      | Active(s) | Active |       | (Actual) |   (%)    |         (# samples)          |
+=========================================================================================================================================================
+|    0 | SELECT STATEMENT                 |          |         |      |           |        |     1 |          |          |                              |
+|    1 |   SORT AGGREGATE                 |          |       1 |      |           |        |     1 |          |          |                              |
+|    2 |    PX COORDINATOR                |          |         |      |           |        |     1 |          |          |                              |
+|    3 |     PX SEND QC (RANDOM)          | :TQ10000 |       1 |      |           |        |       |          |          |                              |
+|    4 |      SORT AGGREGATE              |          |       1 |      |           |        |       |          |          |                              |
+|    5 |       PX BLOCK ITERATOR          |          |   45200 |   62 |           |        |       |          |          |                              |
+| -> 6 |        TABLE ACCESS STORAGE FULL | EMP_S    |   45200 |   62 |       315 |     +0 |       |          |   100.00 | cell smart table scan (1952) |
+=========================================================================================================================================================
+
+
+
+
+SQL> @sqlmonsid1
+Enter Session ID : 1
+Enter Session Serial# : 13
+old   6:  where sid=&v_sid
+new   6:  where sid=1
+old   7:    and session_serial#=&v_serial
+new   7:    and session_serial#=13
+
+          KEY||SQL_ID       ||SQL_EXEC_ID||SQL_EXEC_START     ||CHILD_AD
+-------------||-------------||-----------||-------------------||--------
+  42949672990||9nv0wp08djka5||   16777218||06/02/2016 14:08:54||3DD99F68
+
+Enter the SQL_ID to look at : 9nv0wp08djka5
+Enter the associated SQL_EXEC_ID to look at : 16777218
+Enter the Execution Start Date (DD/MM/YYYY HH24:MI:SS) :
+old  13:  and m.sql_id='&&v_sql_id'
+new  13:  and m.sql_id='9nv0wp08djka5'
+old  14:  and m.sql_exec_id=&&v_sql_exec_id
+new  14:  and m.sql_exec_id=16777218
+old  15:  and m.sql_exec_start=to_date('&&v_sql_exec_start',
+new  15:  and m.sql_exec_start=to_date('',
+
+no rows selected
+
+old   3:                 sql_id=>'&&v_sql_id',
+new   3:                 sql_id=>'9nv0wp08djka5',
+old   4:                 sql_exec_id=>&&v_sql_exec_id,
+new   4:                 sql_exec_id=>16777218,
+old   5:                 sql_exec_start=>to_date('&&v_sql_exec_start',
+new   5:                 sql_exec_start=>to_date('',
+
+PL/SQL procedure successfully completed.
+
+
+V_REPORT
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+select count(*) from emp_s
+
+Global Information
+------------------------------
+ Status              :  EXECUTING
+ Instance ID         :  1
+ Session             :  SYS (1:13)
+ SQL ID              :  9nv0wp08djka5
+ SQL Execution ID    :  16777218
+ Execution Started   :  02/06/2016 14:08:54
+ First Refresh Time  :  02/06/2016 14:08:54
+ Last Refresh Time   :  02/06/2016 14:08:54
+ Duration            :  1013s
+ Module/Action       :  sqlplus@database (TNS V1-V3)/-
+ Service             :  SYS$USERS
+ Program             :  sqlplus@database (TNS V1-V3)
+
+Global Stats
+=========================================
+| Elapsed |   Cpu   |  Other   | Buffer |
+| Time(s) | Time(s) | Waits(s) |  Gets  |
+=========================================
+|    0.01 |    0.00 |     0.01 |     13 |
+=========================================
+
+Parallel Execution Details (DOP=8 , Servers Allocated=8)
+==========================================================================================================
+|      Name      | Type  | Server# | Elapsed |   Cpu   |  Other   | Buffer |         Wait Events         |
+|                |       |         | Time(s) | Time(s) | Waits(s) |  Gets  |         (sample #)          |
+==========================================================================================================
+| PX Coordinator | QC    |         |    0.01 |    0.00 |     0.01 |     13 |                             |
+| p000           | Set 1 |       1 |         |         |          |        | cell smart table scan (829) |
+| p001           | Set 1 |       2 |         |         |          |        | cell smart table scan (829) |
+| p002           | Set 1 |       3 |         |         |          |        | cell smart table scan (829) |
+| p003           | Set 1 |       4 |         |         |          |        | cell smart table scan (829) |
+| p004           | Set 1 |       5 |         |         |          |        | cell smart table scan (829) |
+| p005           | Set 1 |       6 |         |         |          |        | cell smart table scan (829) |
+| p006           | Set 1 |       7 |         |         |          |        | cell smart table scan (829) |
+| p007           | Set 1 |       8 |         |         |          |        | cell smart table scan (829) |
+==========================================================================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=418003122)
+=========================================================================================================================================================
+| Id   |            Operation             |   Name   |  Rows   | Cost |   Time    | Start  | Execs |   Rows   | Activity |       Activity Detail        |
+|      |                                  |          | (Estim) |      | Active(s) | Active |       | (Actual) |   (%)    |         (# samples)          |
+=========================================================================================================================================================
+|    0 | SELECT STATEMENT                 |          |         |      |           |        |     1 |          |          |                              |
+|    1 |   SORT AGGREGATE                 |          |       1 |      |           |        |     1 |          |          |                              |
+|    2 |    PX COORDINATOR                |          |         |      |           |        |     1 |          |          |                              |
+|    3 |     PX SEND QC (RANDOM)          | :TQ10000 |       1 |      |           |        |       |          |          |                              |
+|    4 |      SORT AGGREGATE              |          |       1 |      |           |        |       |          |          |                              |
+|    5 |       PX BLOCK ITERATOR          |          |   45200 |   62 |           |        |       |          |          |                              |
+| -> 6 |        TABLE ACCESS STORAGE FULL | EMP_S    |   45200 |   62 |       993 |     +0 |       |          |   100.00 | cell smart table scan (6632) |
+=========================================================================================================================================================
+
+
+
+SQL> @ss
+
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                                 0
+physical write total bytes                                                0
+cell physical IO interconnect bytes                                       0
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload                     0
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan                0
+cell IO uncompressed bytes                                                0
+
+9 rows selected.
+
+  1  select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+  2  (a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+  3* or a.name like 'cell phy%')
+SQL> select count(*) from emp_s;
+
+
+
+
+  COUNT(*)
+----------
+     45200
+
+SQL> SQL> SQL> SQL>
+SQL>
+SQL>
+SQL>
+
+
+Last login: Sat Feb  6 14:18:07 2016 from 192.9.200.11
+[root@database ~]# ssh cell
+Last login: Sat Feb  6 13:51:38 2016 from database
+[root@cell ~]# cellcli -e alter cell restart services all
+
+Stopping the RS, CELLSRV, and MS services...
+The SHUTDOWN of services was successful.
+Starting the RS, CELLSRV, and MS services...
+Getting the state of RS services...
+ running
+Starting CELLSRV services...
+The STARTUP of CELLSRV services was successful.
+Starting MS services...
+The STARTUP of MS services was successful.
+[root@cell ~]#
+
+
+
+SQL>
+SQL> @ss
+
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                         12.484375
+physical write total bytes                                                0
+cell physical IO interconnect bytes                              .649345398
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload             12.484375
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan       .649345398
+cell IO uncompressed bytes                                        12.484375
+
+9 rows selected.
+
+  1  select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+  2  (a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+  3* or a.name like 'cell phy%')
+SQL>
+
+
+SQL> @ss2
+Enter value for sql_id: 9nv0wp08djka5
+old   7: WHERE sql_id='&sql_id'
+new   7: WHERE sql_id='9nv0wp08djka5'
+
+SQL_ID                 A          B          C          D
+------------- ---------- ---------- ---------- ----------
+9nv0wp08djka5   13172736     762808   13090816     680888
+
+  1  SELECT sql_id,
+  2  physical_read_bytes A,
+  3  io_interconnect_bytes B,
+  4  io_cell_offload_eligible_bytes C,
+  5  io_cell_offload_returned_bytes D
+  6  FROM v$sql
+  7  WHERE sql_id='&sql_id'
+  8* AND sql_text NOT LIKE '%v$sql%'
+SQL>
+
+
+
+
+
+
+SQL> @ss
+
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                                 0
+physical write total bytes                                                0
+cell physical IO interconnect bytes                                       0
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload                     0
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan                0
+cell IO uncompressed bytes                                                0
+
+9 rows selected.
+
+  1  select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+  2  (a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+  3* or a.name like 'cell phy%')
+SQL> select count(*) from emp_s;
+
+  COUNT(*)
+----------
+     45200
+
+SQL> @ss
+
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                           12.5625
+physical write total bytes                                                0
+cell physical IO interconnect bytes                              .727470398
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload             12.484375
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan       .649345398
+cell IO uncompressed bytes                                        12.484375
+
+9 rows selected.
+
+  1  select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+  2  (a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+  3* or a.name like 'cell phy%')
+SQL> @planfc
+Enter value for sql_id: 9nv0wp08djka5
+Enter value for child_no:
+old   1: select * from table(dbms_xplan.display_cursor('&sql_id','&child_no','typical'))
+new   1: select * from table(dbms_xplan.display_cursor('9nv0wp08djka5','','typical'))
+
+PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID  9nv0wp08djka5, child number 0
+-------------------------------------
+select count(*) from emp_s
+
+Plan hash value: 418003122
+
+----------------------------------------------------------------------------------------------------------------
+| Id  | Operation                      | Name     | Rows  | Cost (%CPU)| Time     |    TQ  |IN-OUT| PQ Distrib |
+----------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT               |          |       |    62 (100)|          |        |      |            |
+|   1 |  SORT AGGREGATE                |          |     1 |            |          |        |      |            |
+
+PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------------------------------------------------------------------------------------
+|   2 |   PX COORDINATOR               |          |       |            |          |        |      |            |
+|   3 |    PX SEND QC (RANDOM)         | :TQ10000 |     1 |            |          |  Q1,00 | P->S | QC (RAND)  |
+|   4 |     SORT AGGREGATE             |          |     1 |            |          |  Q1,00 | PCWP |            |
+|   5 |      PX BLOCK ITERATOR         |          | 45200 |    62   (0)| 00:00:01 |  Q1,00 | PCWC |            |
+|*  6 |       TABLE ACCESS STORAGE FULL| EMP_S    | 45200 |    62   (0)| 00:00:01 |  Q1,00 | PCWP |            |
+----------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   6 - storage(:Z>=:Z AND :Z<=:Z)
+
+PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+23 rows selected.
+
+SQL>
+
+
+
+SQL> @ss2
+Enter value for sql_id: 9nv0wp08djka5
+old   7: WHERE sql_id='&sql_id'
+new   7: WHERE sql_id='9nv0wp08djka5'
+
+SQL_ID                 A          B          C          D
+------------- ---------- ---------- ---------- ----------
+9nv0wp08djka5   13172736     762808   13090816     680888
+
+  1  SELECT sql_id,
+  2  physical_read_bytes A,
+  3  io_interconnect_bytes B,
+  4  io_cell_offload_eligible_bytes C,
+  5  io_cell_offload_returned_bytes D
+  6  FROM v$sql
+  7  WHERE sql_id='&sql_id'
+  8* AND sql_text NOT LIKE '%v$sql%'
+SQL>

@@ -1,0 +1,215 @@
+Initialization parameter :
+
+
+alter system set cell_offload_processing=false;
+alter system set cell_offload_processing=true;
+
+alter session set cell_offload_processing=false;
+alter session set cell_offload_processing=true;
+
+To disable cell offload, use the the following SQL statement:
+
+select /*+ opt_param('cell_offload_processing','false') */ count(1) from ambasa.abc;
+
+To enable cell offload, use the the following SQL statement:
+
+select /*+ opt_param('cell_offload_processing','false') */ count(1) from ambasa.abc;
+
+Enabling and Disabling Smart Scan for an ASM Disk Group
+
+
+alter diskgroup ambasa_data_dg set attribute 'cell.smart_scan_capable'='FALSE';
+
+
+
+
+To measure Smart Scan statistics systemwide
+
+select inst.instance_name,
+b.name,
+a.value/1024/1024/1024 value
+from gv$sysstat a, gv$statname b, gv$instance inst
+where a.statistic# = b.statistic#
+and b.name in
+('cell physical IO bytes eligible for predicate offload',
+'cell physical IO interconnect bytes',
+'cell physical IO interconnect bytes returned by Smart Scan')
+and inst.inst_id=a.inst_id
+and inst.inst_id=b.inst_id
+order by 1,2;
+
+Instance Statistic Value (GB)
+---------- ------------------------------------------------------------ -------------
+edw1 cell physical IO bytes eligible for predicate offload 59,080
+edw1 cell physical IO interconnect bytes 28,048
+edw1 cell physical IO interconnect bytes returned by Smart Scan 25,791
+edw2 cell physical IO bytes eligible for predicate offload 58,914
+edw2 cell physical IO interconnect bytes 27,968
+edw2 cell physical IO interconnect bytes returned by Smart Scan 25,702
+
+In this query, we can see that for this database, each instance had almost 60 TB of data eligible for Smart Scan,
+approximately 28 TB transmitted over the storage interconnect, and about 25 TB returned via Smart Scan queries
+
+
+
+Measuring Smart Scan for a Specific Session
+--------------------------------------------
+
+
+
+select sess.sid,
+stat.name,
+round(sess.value/1024/1024/1024,2) value
+from v$sesstat sess,
+v$statname stat
+where stat.statistic# = sess.statistic#
+and sess.sid = '&&sid'
+and stat.name in
+('cell physical IO bytes eligible for predicate offload',
+'cell physical IO interconnect bytes',
+'cell physical IO interconnect bytes returned by Smart Scan')
+union
+select -1,
+stat.name,
+round(sum(sess.value)/1024/1024/1024,2) value
+from v$sesstat sess,
+v$statname stat
+where stat.statistic# = sess.statistic#
+and sess.sid in (select sid from v$px_session where qcsid='&&sid')
+and stat.name in
+('cell physical IO bytes eligible for predicate offload',
+'cell physical IO interconnect bytes',
+'cell physical IO interconnect bytes returned by Smart Scan')
+group by stat.name
+order by 1 desc,2;
+
+
+SID 			Statistic 					Value (GB)
+----- ------------------------------------------------------------ -------------
+914 cell physical IO bytes eligible for predicate offload 		2,648
+914 cell physical IO interconnect bytes					749
+914 cell physical IO interconnect bytes returned by Smart Scan 		749
+
+
+Measuring Smart Scan Statistics for Your Session
+
+
+select stat.name,
+round(sess.value/1024/1024/1024,2) value
+from v$mystat sess,
+v$statname stat
+where stat.statistic# = sess.statistic#
+and stat.name in
+('cell physical IO bytes eligible for predicate offload',
+'cell physical IO interconnect bytes',
+'cell physical IO interconnect bytes returned by Smart Scan')
+order by 1;
+Statistic Value (GB)
+------------------------------------------------------------ -------------
+cell physical IO bytes eligible for predicate offload 883
+cell physical IO interconnect bytes 346
+cell physical IO interconnect bytes returned by Smart Scan 346
+
+
+Measuring Smart Scan Statistics from AWR
+----------------------------------------
+
+
+
+select stime,icgb,eliggb,ssgb from (
+select distinct
+to_char(snap.begin_interval_time,'DD-MON-RR HH24:MI') stime,
+snaps.icbytes/1024/1024/1024 icgb,
+snaps.eligbytes/1024/1024/1024 eliggb,
+snaps.ssbytes/1024/1024/1024 ssgb,
+myrank
+from (
+select ss1.snap_id,
+(sum(ss1.value) - lag(sum(ss1.value),1,0) over (order by ss1.snap_id)) icbytes,
+(sum(ss2.value) - lag(sum(ss2.value),1,0) over (order by ss2.snap_id))
+eligbytes,
+(sum(ss3.value) - lag(sum(ss3.value),1,0) over (order by ss3.snap_id)) ssbytes,
+rank() over (order by ss1.snap_id) myrank
+from
+dba_hist_sysstat ss1,
+dba_hist_sysstat ss2,
+dba_hist_sysstat ss3
+where ss1.snap_id=ss2.snap_id
+and ss2.snap_id=ss3.snap_id
+and ss1.snap_id between &&snap_low-1 and &&snap_hi
+and ss2.dbid=ss1.dbid
+and ss3.dbid=ss2.dbid
+and ss1.stat_name='cell physical IO interconnect bytes'
+and ss2.stat_name='cell physical IO bytes eligible for predicate offload'
+and ss3.stat_name='cell physical IO interconnect bytes returned by Smart Scan'
+group by ss1.snap_id,ss2.snap_id,ss3.snap_id
+order by ss1.snap_id) snaps,
+dba_hist_snapshot snap
+where snap.snap_id=snaps.snap_id
+order by 1)
+where myrank>1;
+SnapStart InterconnectGB SmartScanEligibleGB SmartScanReturnedBytes
+--------------- -------------- ------------------- ----------------------
+10-NOV-12 17:00 3 0 0
+10-NOV-12 18:00 1887 6660 1884
+10-NOV-12 19:00 2496 7463 2495
+
+
+
+Measuring Offload Statistics for Individual SQL Cursors
+--------------------------------------------------------
+
+Querying SQL Cursor Cell I/O Statistics from V$SQL
+To report cell I/O and offload statistics for individual SQL statements, run the script in  This script accepts a single sql_id as an input parameter
+
+select sql_id,
+(elapsed_time/1000000)/executions avgelapsed,
+decode(io_cell_offload_eligible_bytes,0,'No','Yes') eligible,
+io_interconnect_bytes/1024/1024/1024 icgb,
+io_cell_offload_returned_bytes/1024/1024/1024 ssgb,
+sql_text
+from gv$sql s
+where sql_id='&&sql_id'
+order by 1, 2, 3;
+/
+SqlID ChildN AvgSecs Offloaded IO(GB) SS(GB) SqlText
+------------- ------ ------- --------- ------ ------ ----------------------------------------
+1xxbw6b88uc77 0 2.46 Yes .14 .14 select /* jc1 */ /*+ full (mmt) */ count
+
+
+
+
+select sql_id, child_number,
+(elapsed_time/1000000)/
+executions/
+decode(px_servers_executions,0,1,px_servers_executions) avgelapsed,
+decode(io_cell_offload_eligible_bytes,0,'No','Yes') eligible,
+io_interconnect_bytes/1024/1024/1024 icgb,
+io_cell_offload_returned_bytes/1024/1024/1024 ssgb,
+sql_text
+from gv$sql s
+where executions > 0
+order by 3 desc
+/
+SqlID ChildN AvgSecs Offloaded IO(GB) SS(GB) SqlText
+------------ ------ ------- --------- -------- -------- ----------------------------------------
+6tdgz7h966hnv 1 159.71 Yes 173.15 173.25 select count(*) from d14.DWB_
+3qmc7472q5h91 2 121.75 Yes 1,485.66 1,494.09 select sum(qty) from dwb_rtl_sls_retrn_l
+3qmc7472q5h91 1 83.62 Yes 2,178.07 2,191.16 select sum(qty) from dwb_rtl_sls_retrn_l
+3qmc7472q5h91 2 43.82 Yes 3,529.50 3,543.58 select sum(qty) from dwb_rtl_sls_retrn_l
+
+
+
+Using Real-Time SQL Monitoring to Report Cell I/O and Offload Statistics
+for a SQL Statement
+Oracle’s Real-Time SQL Monitoring feature, discussed in Recipe 14-4, can be used to not only report cell I/O
+statistics for a SQL statement but also at a SQL plan operation level, providing more granularity for your analysis.
+Oracle Enterprise Manager provides the most intuitive interface to view this information, but you can also use
+DBMS_SQLTUNE.REPORT_SQL_MONITOR to collect the same information. For a specific SQL cursor, execute the script in
+Listing 15-7 to execute a SQL Monitoring report.
+Listing 15-7. lst15-07-exass-sqlmon.sql
+SQL> select dbms_sqltune.report_sql_monitor( sql_id=>'&&p_sqlid',
+event_detail=>'YES',
+report_level=>'ALL')
+from dual;
+Enter value for p_sqlid: 3qmc7472q5h91

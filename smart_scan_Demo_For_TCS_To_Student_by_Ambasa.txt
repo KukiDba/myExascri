@@ -1,0 +1,283 @@
+******************************Not Required if scott user present**********************************
+sqlplus / as sysdba
+show parameter cell
+@?/rdbms/admin/utlsampl.sql
+******************************Not Required if scott user present**********************************
+alter system flush shared_pool;
+alter system flush buffer_cache;
+
+drop tablespace tbs01 including contents and datafiles;
+create tablespace tbs01 datafile '+DATA' size 100m;
+
+
+
+drop table emp_s purge;
+create table emp_s tablespace tbs01 as select * from scott.emp;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+
+commit;
+
+
+set lines 200 pages 1000
+col owner for a15
+col table_name for a20
+col tablespace_name for a20
+
+select owner,table_name,degree,tablespace_name from dba_tables where table_name='EMP_S';
+select bytes/1024/1024 as mb from dba_segments where segment_name='EMP_S' and owner='SYS';
+
+alter table emp_s parallel 8;
+
+select owner,table_name,degree from dba_tables where table_name='EMP_S';
+
+exit
+
+sqlplus / as sysdba
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+select count(*) from emp_s;
+
+********************************************************************************************
+Do it only if session hangs in our case (Important :- Do not do this in PRODUCTION)
+ssh cell
+
+cellcli -e alter cell restart services cellsrv
+
+********************************************************************************************
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+select sql_id from v$sql where sql_text='select count(*) from emp_s';
+
+set lines 200 pages 1000
+select * from TABLE(dbms_xplan.display_cursor ('9nv0wp08djka5'));
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+select /*+ OPT_PARAM('cell_offload_processing' 'false') */ count(*) from emp_s;
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+@ss
+@ss1
+@ss3
+@fsqlfcss
+9nv0wp08djka5
+@planfc
+9nv0wp08djka5
+enter
+@sqlmonplan
+9nv0wp08djka5
+
+
+@fsqlfcss
+7aussyhsbck0u
+@sqlmonplan
+7aussyhsbck0u
+@planfc
+7aussyhsbck0u
+enter
+
+
+exit
+
+sqlplus / as sysdba
+
+select name ,value from v$sysstat where name like 'cell phy%';
+
+select event,total_waits from v$system_event where event like '%smart%';
+
+
+
+**************************************************************************************************
+
+select name from v$sqlfn_metadata;
+**************************************************************************************************
+SQL> !cat tbs1.sql
+col tablespace format A16
+SELECT /* + RULE */ df.tablespace_name "Tablespace",
+df.bytes / (1024 * 1024) "Size (MB)",
+SUM(fs.bytes) / (1024 * 1024) "Free (MB)",
+df.bytes / (1024 * 1024) - SUM(fs.bytes) / (1024 * 1024) "Used (MB)",
+Nvl(Round(SUM(fs.bytes) * 100 / df.bytes),1) "% Free",
+Round((df.bytes - SUM(fs.bytes)) * 100 / df.bytes) "% Used"
+FROM dba_free_space fs,
+(SELECT tablespace_name,SUM(bytes) bytes
+FROM dba_data_files
+GROUP BY tablespace_name) df
+WHERE fs.tablespace_name (+) = df.tablespace_name
+GROUP BY df.tablespace_name,df.bytes
+Order by 4;
+
+
+
+
+SQL> !cat ss.sql
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+l
+
+SQL> !cat ss1.sql
+SELECT sql_id,
+physical_read_bytes/1024/1024 A,
+io_interconnect_bytes/1024/1024 B,
+io_cell_offload_eligible_bytes/1024/1024 C,
+io_cell_offload_returned_bytes/1024/1024 D
+FROM v$sql
+WHERE sql_id='9nv0wp08djka5'
+AND sql_text NOT LIKE '%v$sql%';
+l
+
+SQL> !cat ss3.sql
+SELECT sql_id,
+physical_read_bytes A,
+io_interconnect_bytes B,
+io_cell_offload_eligible_bytes C,
+io_cell_offload_returned_bytes D
+FROM v$sql
+WHERE sql_id='7aussyhsbck0u'
+AND sql_text NOT LIKE '%v$sql%';
+l
+
+
+SQL> !cat sqlmonplan.sql
+set long 10000000
+set longchunksize 10000000
+set linesize 200
+set serveroutput on
+select DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id=>'&sql_id',report_level=>'TYPICAL',type=>'TEXT') from dual;
+
+
+SQL>
+
+SQL> !cat fsqlfcss.sql
+set pagesize 999
+set lines 190
+col sql_id format a13 head 'SqlID'
+col child_number format 999 head 'ChildNo'
+col sql_text format a40 head 'SqlText' trunc
+col avgelapsed format 99,999.99 head 'AvgSecs'
+col eligible format a10 head 'Offloaded'
+col icgb format 999,999.99 head 'IO(GB)'
+col ssgb format 999,999.99 head 'SS(GB)'
+select sql_id, child_number,
+  (elapsed_time/1000000)/
+     executions/
+      decode(px_servers_executions,0,1,px_servers_executions) avgelapsed,
+  decode(io_cell_offload_eligible_bytes,0,'No','Yes') eligible,
+  io_interconnect_bytes/1024/1024 icmb,
+  io_cell_offload_returned_bytes/1024/1024 ssmb,
+  sql_text
+from gv$sql s
+where sql_id='&&sql_id'
+order by 1, 2, 3
+/
+undefine sql_id
+l
+
+SQL>
+
+SQL> !cat fsqlfc.sql
+set lines 200
+col username format a13
+col prog format a22
+col sql_text format a41
+col sid format 999
+col child_number format 99999 heading CHILD
+col ocategory format a10
+col avg_etime format 9,999,999.99
+col parse_calls format 9999999
+col etime format 9,999,999.99
+select sql_id, child_number, plan_hash_value plan_hash, parse_calls,executions execs, elapsed_time/1000000 etime,
+(elapsed_time/1000000)/decode(nvl(executions,0),0,1,executions) avg_etime, u.username,
+sql_text
+from v$sql s, dba_users u
+where upper(sql_text) like '%'||upper(nvl('&sql_text',sql_text))||'%'
+and sql_text not like '%from v$sql where sql_text like nvl(%'
+and sql_id like nvl('&sql_id',sql_id)
+and u.user_id = s.parsing_user_id
+/
+
+
+SQL> !cat sqlmonstarte.sql
+SET lines 200
+SET pages 1000
+SET SQLBL ON
+col username for a7
+col sid for 999
+SELECT *
+     FROM
+       (SELECT status,
+         sid,session_serial#,username,
+         sql_id,
+         sql_exec_id,
+         TO_CHAR(sql_exec_start,'dd-mon-yyyy hh24:mi:ss') AS sql_exec_start,
+         ROUND(elapsed_time/1000000)                      AS "Elapsed (s)",
+         ROUND(cpu_time    /1000000)                      AS "CPU (s)",
+         buffer_gets,
+         ROUND(physical_read_bytes /(1024*1024)) AS "Phys reads (MB)",
+         ROUND(physical_write_bytes/(1024*1024)) AS "Phys writes (MB)"
+       FROM v$sql_monitor
+       where status not like '%DONE%'
+       ORDER BY sql_exec_start desc
+       )
+WHERE rownum<=20;
+
+SQL>
+
+SQL> !cat planfc.sql
+set lines 150
+select * from table(dbms_xplan.display_cursor('&sql_id','&child_no','typical'))
+/
+
+SQL>
+
+
+**************************************************************************************************
+
+
+---------------------------------------------------------------------------------
+create tablespace tbs01 datafile '+DATA' size 100m;
+
+drop table emp_s purge;
+create table emp_s tablespace tbs01 as
+select 'Oracle Enterprise Edition' as product, mod(rownum,5) as channel_id,
+mod(rownum,1000) as cust_id ,5000 as amount_sold, to_date
+('01.' || lpad(to_char(mod(rownum,12)+1),2,'0') || '2010' ,'dd.mm.yyyy')
+as time_id from dual connect by level<=200000;
+
+insert /*+ append */ into emp_s select * from emp_s;
+
+commit;
+
+insert /*+ append */ into emp_s select * from emp_s;
+commit;
+
+exec dbms_stats.gather_table_stats('SYS','emp_s')
+
+show parameter cell_offload_processing
+
+---------------------------------------------------------------------------------

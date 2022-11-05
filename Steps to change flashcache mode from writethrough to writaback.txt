@@ -1,0 +1,55 @@
+Steps to change flashcache mode from writethrough to writaback:
+---------------------------------------------------------------
+It can be done in rolling as well non-rolling fashion. For rolling fashion we have to perform below
+
+Steps in each cell server one by one.
+-------------------------------------
+
+Step 1. Drop the flash cache on that cell
+#cellcli –e drop flashcache
+
+Step 2. Check the status of ASM if the grid disks go OFFLINE. The following command should return 'Yes' for the grid disks being listed
+# cellcli -e list griddisk attributes name,asmmodestatus,asmdeactivationoutcome
+
+Step 3. Inactivate the griddisk on the cell
+# cellcli –e alter griddisk all inactive
+
+Step 4. Shut down cellsrv service
+# cellcli -e alter cell shutdown services cellsrv
+
+Step 5. Set the cell flashcache mode to writeback
+# cellcli -e "alter cell flashCacheMode=writeback"
+
+Step 6. Restart the cellsrv service
+# cellcli -e alter cell startup services cellsrv
+
+Step 7. Reactivate the griddisks on the cell
+# cellcli –e alter griddisk all active
+
+Step 8. Verify all grid disks have been successfully put online 
+using the following command:
+# cellcli -e list griddisk attributes name, asmmodestatus
+
+Step 9. Recreate the flash cache
+# cellcli -e create flashcache all
+
+Step 10. Check the status of the cell to confirm that it's now in WriteBack mode
+# cellcli -e list cell detail | grep flashCacheMode
+
+Step 11. Repeat these same steps again on the next cell to the FINAL cell. However, before taking another storage server offline, execute the following making sure 'asmdeactivationoutcome' displays YES
+
+# cellcli -e list griddisk attributes name,asmmodestatus,asmdeactivationoutcome
+
+
+
+The flashCacheMode attribute is used to display and set the current value for flash
+cache. The values are writethrough (the default) or writeback. Note the following
+about the flashCacheMode attribute:
+– If the attribute is modified from writeback to writethrough and there is
+existing flash cache, then an error is displayed. The flash cache must be
+flushed and dropped before changing the attribute to writethrough.
+– If the attribute is to be modified from writethrough to writeback, then flash
+cache must be dropped before modifying the attribute.
+– Write back caching can be disabled on the grid disks that do not need caching,
+such as the grid disks in the RECO disk group. This allows other objects to use
+the cache space.

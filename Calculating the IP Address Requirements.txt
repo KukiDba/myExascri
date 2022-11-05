@@ -1,0 +1,23 @@
+Calculating the IP Address Requirements
+
+The number of IP addresses depends on the physical deployment.
+The following equations show how to calculate the number of IP addresses required for the physical deployment.
+
+Physical deployment with a single cluster:
+
+Number of management network IP addresses = 
+    (number of databases servers)*2(1 for admin+1 for ILOM)+          \
+    (number of storage servers)*2  (1 for admin+1 for ILOM) +         \
+    (number of PDUs - its always 2) +                                 \
+    (number of IB switches - its 2/3) +                               \
+    (number of Ethernet switches - its always 1 )
+
+Number of client access network IP addresses = 
+    (number of database servers)*2(1 for public+1 for VIP=2) + 3(3 SCANIP for RAC)
+
+Number of InfiniBand network IP addresses = 
+    (number of database servers)*2 +           \
+    (number of storage servers)*2
+
+Number of additional network IP addresses =
+    (number of database servers) * (number of additional networks)

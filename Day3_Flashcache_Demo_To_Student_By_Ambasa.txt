@@ -1,0 +1,300 @@
+su - oracle
+. oraenv
++ASM
+asmcmd lsdg
+. oraenv
+orcl
+sqlplus / as sysdba
+create tablespace sample datafile '+data' size 100m;
+conn scott/tiger
+--drop table scott.emp_s purge;
+create table emp_s tablespace sample as select * from scott.emp;
+
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+
+
+commit;
+
+select count(*) from emp_s;
+
+alter table emp_s parallel 1;
+
+cellcli -e list flashcachecontent detail
+
+select a.name, b.value from v$sysstat a, v$mystat b
+where a.statistic# = b.statistic# and
+(a.name like '%flash cache read hits'
+or a.name like 'cell phy%'
+or a.name like 'physical read tot%'
+or a.name like 'physical read req%');
+
+cellcli -e list flashcachecontent detail
+alter table emp_s storage (cell_flash_cache keep);
+cellcli -e list flashcachecontent detail
+@fc
+cellcli -e list flashcachecontent detail
+select count(*) from emp_s;
+cellcli -e list flashcachecontent detail
+@fc
+insert into emp_s select * from emp_s;
+commit;
+cellcli -e list flashcachecontent detail
+
+
+
+
+select data_object_id dobject_id,object_name,owner from dba_objects where data_object_id=79555;
+
+col table_name for a20
+col tablespace_name for a20
+col CELL_FLASH_CACHE for a20
+col FLASH_CACHE for a20
+col BUFFER_POOL for a20
+set lines 200
+
+SELECT TABLE_NAME,TABLESPACE_NAME,OWNER,FLASH_CACHE,CELL_FLASH_CACHE from dba_tables 
+where table_name='EMP_S';
+
+
+
+SQL> select count(*) from emp_s;
+
+  COUNT(*)
+----------
+   1835008
+
+SQL> @fc
+
+NAME                                                                  VALUE
+---------------------------------------------------------------- ----------
+physical read total IO requests                                          20
+physical read total multi block requests                                  0
+physical read requests optimized                                          0
+physical read total bytes optimized                                       0
+physical read total bytes                                            196608
+cell physical IO interconnect bytes                                  204800
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload                     0
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan                0
+
+NAME                                                                  VALUE
+---------------------------------------------------------------- ----------
+cell flash cache read hits                                                0
+
+12 rows selected.
+
+  1  select a.name, b.value from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+  2  (a.name like '%flash cache read hits'
+  3  or a.name like 'cell phy%'
+  4  or a.name like 'physical read tot%'
+  5* or a.name like 'physical read req%')
+SQL>
+
+
+Without Flashcache data being read from Disk to db cache
+----------------------------------------------------------
+cellcli -e list flashcache
+cellcli -e create flashcache all
+cellcli -e list flashcache
+cellcli -e list flashcache detail
+cellcli -e list flashcachecontent
+cellcli -e list flashcachecontent detail
+
+You can see from above some amount of data being read from flashcache to db cache
+----------------------------------------------------------------------------------
+
+From the cell terminal run the below to check flash content
+cellcli -e list flashcachecontent
+cellcli -e list flashcachecontent detail
+
+
+[root@cell ~]# cellcli -e list flashcachecontent detail
+         cachedKeepSize:         0
+         cachedSize:             4489216
+         dbID:                   2415342635
+         dbUniqueName:           ORCL
+         hitCount:               467
+         missCount:              0
+         objectNumber:           80014
+         tableSpaceNumber:       7
+
+
+
+SQL> select object_id, data_object_id from DBA_objects where object_name = 'EMP_S';
+
+ OBJECT_ID DATA_OBJECT_ID
+---------- --------------
+     80014          80014
+
+--list flashcachecontent where objectnumber=123456 detail
+
+cellcli -e list flashcachecontent where objectnumber=80014 detail
+
+--SQL> select name  from ts$   where ts# = 123;
+
+SQL> select name  from ts$   where ts# = 7;
+
+
+
+SQL> select name  from ts$   where ts# = 7;
+
+NAME
+------------------------------
+SAMPLE
+
+SQL> select file_name from dba_data_files where tablespace_name='SAMPLE';
+
+FILE_NAME
+--------------------------------------------------------------------------------
++DATA/orcl/datafile/sample.256.914516271
+
+SQL>
+
+SQL> alter system flush buffer_cache;
+
+
+[root@cell ~]# cellcli -e list flashcachecontent detail
+         cachedKeepSize:         1187840
+         cachedSize:             5603328
+         dbID:                   2415342635
+         dbUniqueName:           UNKNOWNORCL
+         hitCount:               504
+         hoursToExpiration:      24
+         missCount:              0
+         objectNumber:           80014
+         tableSpaceNumber:       7
+[root@cell ~]#
+
+
+
+SQL> @fc
+
+NAME                                                                  VALUE
+---------------------------------------------------------------- ----------
+physical read total IO requests                                         154
+physical read total multi block requests                                 69
+physical read requests optimized                                         70
+physical read total bytes optimized                                33693696
+physical read total bytes                                          74915840
+cell physical IO interconnect bytes                                20283064
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload              72392704
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan         17759928
+
+NAME                                                                  VALUE
+---------------------------------------------------------------- ----------
+cell flash cache read hits                                               70
+
+12 rows selected.
+
+  1  select a.name, b.value from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+  2  (a.name like '%flash cache read hits'
+  3  or a.name like 'cell phy%'
+  4  or a.name like 'physical read tot%'
+  5* or a.name like 'physical read req%')
+SQL>
+
+
+
+
+[root@cell ~]# cellcli -e describe celldisk
+        name                    modifiable
+        comment                 modifiable
+        creationTime
+        deviceName
+        devicePartition
+        diskType
+        errorCount
+        freeSpace
+        freeSpaceMap
+        id
+        interleaving
+        lun
+        physicalDisk
+        raidLevel
+        size
+        status
+[root@cell ~]# cellcli -e list celldisk attributes name,disktype,freespace,size where disktype=flashdisk
+         FD_00_cell      FlashDisk       448M    496M
+         FD_01_cell      FlashDisk       448M    496M
+         FD_02_cell      FlashDisk       448M    496M
+         FD_03_cell      FlashDisk       448M    496M
+         FD_04_cell      FlashDisk       416M    464M
+         FD_05_cell      FlashDisk       416M    464M
+         FD_06_cell      FlashDisk       416M    464M
+         FD_07_cell      FlashDisk       416M    464M
+         FD_08_cell      FlashDisk       416M    464M
+         FD_09_cell      FlashDisk       416M    464M
+         FD_10_cell      FlashDisk       416M    464M
+         FD_11_cell      FlashDisk       416M    464M
+         FD_12_cell      FlashDisk       416M    464M
+         FD_13_cell      FlashDisk       416M    464M
+         FD_14_cell      FlashDisk       432M    480M
+         FD_15_cell      FlashDisk       16M     480M
+[root@cell ~]#
+
+
+[root@cell ~]# cellcli -e create flashcache celldisk=FD_00_cell
+Flash cache cell_FLASHCACHE successfully created
+[root@cell ~]#
+
+[root@cell ~]# cellcli -e list celldisk attributes name,disktype,freespace,size where disktype=flashdisk
+         FD_00_cell      FlashDisk       0       496M
+         FD_01_cell      FlashDisk       448M    496M
+         FD_02_cell      FlashDisk       448M    496M
+         FD_03_cell      FlashDisk       448M    496M
+         FD_04_cell      FlashDisk       416M    464M
+         FD_05_cell      FlashDisk       416M    464M
+         FD_06_cell      FlashDisk       416M    464M
+         FD_07_cell      FlashDisk       416M    464M
+         FD_08_cell      FlashDisk       416M    464M
+         FD_09_cell      FlashDisk       416M    464M
+         FD_10_cell      FlashDisk       416M    464M
+         FD_11_cell      FlashDisk       416M    464M
+         FD_12_cell      FlashDisk       416M    464M
+         FD_13_cell      FlashDisk       416M    464M
+         FD_14_cell      FlashDisk       432M    480M
+         FD_15_cell      FlashDisk       16M     480M
+[root@cell ~]# cellcli -e list flashcache detail
+         name:                   cell_FLASHCACHE
+         cellDisk:               FD_00_cell
+         creationTime:           2016-06-14T16:47:48-07:00
+         degradedCelldisks:
+         effectiveCacheSize:     448M
+         id:                     55d27679-2dca-40e5-a9c8-58924d2d869d
+         size:                   448M
+         status:                 normal
+[root@cell ~]#
+
+
+[root@cell ~]# cellcli -e drop flashcache
+Flash cache cell_FLASHCACHE successfully dropped
+
+[root@cell ~]# cellcli -e create flashcache all
+Flash cache cell_FLASHCACHE successfully created, but the following cell disks were skipped because their statuses are not normal: FD_15_cell
+[root@cell ~]#
+
+
+[root@cell ~]# cellcli -e list flashcache detail
+         name:                   cell_FLASHCACHE
+         cellDisk:               FD_01_cell,FD_11_cell,FD_10_cell,FD_14_cell,FD_12_cell,FD_07_cell,FD_02_cell,FD_08_cell,FD_05_cell,FD_00_cell,FD_03_cell,FD_13_cell,FD_06_cell,FD_04_cell,FD_09_cell
+         creationTime:           2016-06-14T16:50:21-07:00
+         degradedCelldisks:
+         effectiveCacheSize:     6.234375G
+         id:                     81227533-9298-4d39-a94d-0d7890394f65
+         size:                   6.234375G
+         status:                 normal
+[root@cell ~]#

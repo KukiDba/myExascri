@@ -1,0 +1,605 @@
+[oracle@database Ambasa_Scripts]$ sp
+
+SQL*Plus: Release 11.2.0.2.0 Production on Tue Jun 14 ...2016
+
+Copyright (c) 1982, 2010, Oracle.  All rights reserved.
+
+
+Connected to:
+Oracle Database 11g Enterprise Edition Release 11.2.0.2.0 - Production
+With the Partitioning, Automatic Storage Management, OLAP, Data Mining
+and Real Application Testing options
+
+SQL> alter system flush shared_pool;
+alter system flush buffer_cache;
+
+drop tablespace tbs01 including contents and datafiles;
+System altered.
+
+SQL>
+System altered.
+
+SQL> SQL>
+
+
+
+
+
+Tablespace dropped.
+
+SQL> SQL> SQL> SQL> SQL>
+SQL>
+SQL> create tablespace tbs01 datafile '+DATA' size 100m;
+
+Tablespace created.
+
+SQL> @tbs1
+
+Tablespace        Size (MB)  Free (MB)  Used (MB)     % Free     % Used
+---------------- ---------- ---------- ---------- ---------- ----------
+TBS01                   100         99          1         99          1
+SAMPLE                  100         88         12         88         12
+UNDOTBS1                375   339.8125    35.1875         91          9
+USERS                 61.25      3.125     58.125          5         95
+EXAMPLE             510.625   200.8125   309.8125         39         61
+SYSAUX                  580    42.4375   537.5625          7         93
+SYSTEM                 3750   1126.375   2623.625         30         70
+
+7 rows selected.
+
+SQL> l
+  1  SELECT /* + RULE */ df.tablespace_name "Tablespace",
+  2  df.bytes / (1024 * 1024) "Size (MB)",
+  3  SUM(fs.bytes) / (1024 * 1024) "Free (MB)",
+  4  df.bytes / (1024 * 1024) - SUM(fs.bytes) / (1024 * 1024) "Used (MB)",
+  5  Nvl(Round(SUM(fs.bytes) * 100 / df.bytes),1) "% Free",
+  6  Round((df.bytes - SUM(fs.bytes)) * 100 / df.bytes) "% Used"
+  7  FROM dba_free_space fs,
+  8  (SELECT tablespace_name,SUM(bytes) bytes
+  9  FROM dba_data_files
+ 10  GROUP BY tablespace_name) df
+ 11  WHERE fs.tablespace_name (+) = df.tablespace_name
+ 12  GROUP BY df.tablespace_name,df.bytes
+ 13* Order by 4
+SQL> drop table emp_s purge;
+create table emp_s tablespace tbs01 as select * from scott.emp;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+insert into emp_s select * from emp_s;
+
+commit;drop table emp_s purge
+           *
+ERROR at line 1:
+ORA-00942: table or view does not exist
+
+
+SQL>
+Table created.
+
+SQL>
+14 rows created.
+
+SQL>
+28 rows created.
+
+SQL>
+56 rows created.
+
+SQL>
+112 rows created.
+
+SQL>
+224 rows created.
+
+SQL>
+448 rows created.
+
+SQL>
+896 rows created.
+
+SQL>
+1792 rows created.
+
+SQL>
+3584 rows created.
+
+SQL>
+7168 rows created.
+
+SQL>
+14336 rows created.
+
+SQL>
+
+28672 rows created.
+
+SQL>
+
+
+
+57344 rows created.
+
+SQL>
+
+
+
+114688 rows created.
+
+SQL> SQL>
+Commit complete.
+
+SQL> SQL> SQL> SQL> SQL> SQL> SQL>
+SQL>
+SQL>
+SQL> set lines 200 pages 1000
+SQL> col owner for a15
+SQL> col table_name for a20
+SQL> col tablespace_name for a20
+SQL>
+SQL> select owner,table_name,degree,tablespace_name from dba_tables where table_name='EMP_S';
+
+OWNER           TABLE_NAME           DEGREE     TABLESPACE_NAME
+--------------- -------------------- ---------- --------------------
+SYS             EMP_S                         1 TBS01
+SCOTT           EMP_S                         8 SAMPLE
+
+SQL> select bytes/1024/1024 as mb from dba_segments where segment_name='EMP_S' and owner='SYS';
+
+        MB
+----------
+        11
+
+SQL> alter table emp_s parallel 8;
+
+select owner,table_name,degree from dba_tables where table_name='EMP_S';
+
+Table altered.
+
+SQL> SQL>
+OWNER           TABLE_NAME           DEGREE
+--------------- -------------------- ----------
+SYS             EMP_S                         8
+SCOTT           EMP_S                         8
+
+SQL>
+SQL> exit
+Disconnected from Oracle Database 11g Enterprise Edition Release 11.2.0.2.0 - Production
+With the Partitioning, Automatic Storage Management, OLAP, Data Mining
+and Real Application Testing options
+[oracle@database Ambasa_Scripts]$ sqlplus / as sysdba
+
+SQL*Plus: Release 11.2.0.2.0 Production on Tue Jun 14 ... 2016
+
+Copyright (c) 1982, 2010, Oracle.  All rights reserved.
+
+
+Connected to:
+Oracle Database 11g Enterprise Edition Release 11.2.0.2.0 - Production
+With the Partitioning, Automatic Storage Management, OLAP, Data Mining
+and Real Application Testing options
+
+SQL> select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+  2  (a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');  3
+
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                          .0078125
+physical write total bytes                                                0
+cell physical IO interconnect bytes                                .0078125
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload                     0
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan                0
+cell IO uncompressed bytes                                                0
+
+9 rows selected.
+
+SQL> select count(*) from emp_s;
+
+  COUNT(*)
+----------
+    229376
+
+SQL> select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+  2    3
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                        10.7734375
+physical write total bytes                                                0
+cell physical IO interconnect bytes                              2.65644836
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload             10.765625
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan       2.64863586
+cell IO uncompressed bytes                                        10.765625
+
+9 rows selected.
+
+SQL>
+SQL> select sql_id from v$sql where sql_text='select count(*) from emp_s';
+
+SQL_ID
+-------------
+9nv0wp08djka5
+
+SQL> set lines 200 pages 1000
+SQL> select * from TABLE(dbms_xplan.display_cursor ('9nv0wp08djka5'));
+
+PLAN_TABLE_OUTPUT
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID  9nv0wp08djka5, child number 0
+-------------------------------------
+select count(*) from emp_s
+
+Plan hash value: 418003122
+
+----------------------------------------------------------------------------------------------------------------
+| Id  | Operation                      | Name     | Rows  | Cost (%CPU)| Time     |    TQ  |IN-OUT| PQ Distrib |
+----------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT               |          |       |    52 (100)|          |        |      |            |
+|   1 |  SORT AGGREGATE                |          |     1 |            |          |        |      |            |
+|   2 |   PX COORDINATOR               |          |       |            |          |        |      |            |
+|   3 |    PX SEND QC (RANDOM)         | :TQ10000 |     1 |            |          |  Q1,00 | P->S | QC (RAND)  |
+|   4 |     SORT AGGREGATE             |          |     1 |            |          |  Q1,00 | PCWP |            |
+|   5 |      PX BLOCK ITERATOR         |          |   175K|    52   (0)| 00:00:01 |  Q1,00 | PCWC |            |
+|*  6 |       TABLE ACCESS STORAGE FULL| EMP_S    |   175K|    52   (0)| 00:00:01 |  Q1,00 | PCWP |            |
+----------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   6 - storage(:Z>=:Z AND :Z<=:Z)
+
+Note
+-----
+   - dynamic sampling used for this statement (level=2)
+
+
+27 rows selected.
+
+SQL> select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+  2    3
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                         11.671875
+physical write total bytes                                                0
+cell physical IO interconnect bytes                              3.55488586
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload             10.765625
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan       2.64863586
+cell IO uncompressed bytes                                        10.765625
+
+9 rows selected.
+
+SQL>
+SQL> select /*+ OPT_PARAM('cell_offload_processing' 'false') */ count(*) from emp_s;
+
+  COUNT(*)
+----------
+    229376
+
+SQL>
+SQL>
+SQL> select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+  2    3
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                           22.4375
+physical write total bytes                                                0
+cell physical IO interconnect bytes                              14.3205109
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload             10.765625
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan       2.64863586
+cell IO uncompressed bytes                                        10.765625
+
+9 rows selected.
+
+SQL>
+SQL> @ss
+
+NAME                                                                     MB
+---------------------------------------------------------------- ----------
+physical read total bytes                                           22.4375
+physical write total bytes                                                0
+cell physical IO interconnect bytes                              14.3205109
+cell physical IO bytes saved during optimized file creation               0
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload             10.765625
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan       2.64863586
+cell IO uncompressed bytes                                        10.765625
+
+9 rows selected.
+
+  1  select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+  2  (a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+  3* or a.name like 'cell phy%')
+SQL> @ss1
+
+SQL_ID                 A          B          C          D
+------------- ---------- ---------- ---------- ----------
+9nv0wp08djka5  10.765625 2.64863586  10.765625 2.64863586
+
+  1  SELECT sql_id,
+  2  physical_read_bytes/1024/1024 A,
+  3  io_interconnect_bytes/1024/1024 B,
+  4  io_cell_offload_eligible_bytes/1024/1024 C,
+  5  io_cell_offload_returned_bytes/1024/1024 D
+  6  FROM v$sql
+  7  WHERE sql_id='9nv0wp08djka5'
+  8* AND sql_text NOT LIKE '%v$sql%'
+SQL> @ss3
+
+SQL_ID                 A          B          C          D
+------------- ---------- ---------- ---------- ----------
+7aussyhsbck0u   11288576   11288576          0          0
+
+  1  SELECT sql_id,
+  2  physical_read_bytes A,
+  3  io_interconnect_bytes B,
+  4  io_cell_offload_eligible_bytes C,
+  5  io_cell_offload_returned_bytes D
+  6  FROM v$sql
+  7  WHERE sql_id='7aussyhsbck0u'
+  8* AND sql_text NOT LIKE '%v$sql%'
+SQL> @fsqlfcss
+Enter value for sql_id: 9nv0wp08djka5
+old  10: where sql_id='&&sql_id'
+new  10: where sql_id='9nv0wp08djka5'
+
+SqlID         ChildNo    AvgSecs Offloaded        ICMB       SSMB SqlText
+------------- ------- ---------- ---------- ---------- ---------- ----------------------------------------
+9nv0wp08djka5       0       2.86 Yes        2.64863586 2.64863586 select count(*) from emp_s
+
+  1  select sql_id, child_number,
+  2    (elapsed_time/1000000)/
+  3       executions/
+  4        decode(px_servers_executions,0,1,px_servers_executions) avgelapsed,
+  5    decode(io_cell_offload_eligible_bytes,0,'No','Yes') eligible,
+  6    io_interconnect_bytes/1024/1024 icmb,
+  7    io_cell_offload_returned_bytes/1024/1024 ssmb,
+  8    sql_text
+  9  from gv$sql s
+ 10  where sql_id='&&sql_id'
+ 11* order by 1, 2, 3
+SQL> @sqlmonplan
+Enter value for sql_id: 9nv0wp08djka5
+old   1: select DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id=>'&sql_id',report_level=>'TYPICAL',type=>'TEXT') from dual
+new   1: select DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id=>'9nv0wp08djka5',report_level=>'TYPICAL',type=>'TEXT') from dual
+
+DBMS_SQLTUNE.REPORT_SQL_MONITOR(SQL_ID=>'9NV0WP08DJKA5',REPORT_LEVEL=>'TYPICAL',TYPE=>'TEXT')
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+select count(*) from emp_s
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ Instance ID         :  1
+ Session             :  SYS (40:107)
+ SQL ID              :  9nv0wp08djka5
+ SQL Execution ID    :  16777216
+ Execution Started   :  06/14/2016 23:28:19
+ First Refresh Time  :  06/14/2016 23:28:20
+ Last Refresh Time   :  06/14/2016 23:28:23
+ Duration            :  4s
+ Module/Action       :  sqlplus@database (TNS V1-V3)/-
+ Service             :  SYS$USERS
+ Program             :  sqlplus@database (TNS V1-V3)
+ Fetch Calls         :  1
+
+Global Stats
+=================================================================================================================
+| Elapsed |   Cpu   |    IO    | Application | Concurrency |  Other   | Fetch | Buffer | Read | Read  |  Cell   |
+| Time(s) | Time(s) | Waits(s) |  Waits(s)   |  Waits(s)   | Waits(s) | Calls |  Gets  | Reqs | Bytes | Offload |
+=================================================================================================================
+|      23 |    0.46 |       20 |        0.98 |        0.11 |     1.18 |     1 |   1595 |  122 |  11MB |  75.37% |
+=================================================================================================================
+
+Parallel Execution Details (DOP=8 , Servers Allocated=8)
+==========================================================================================================================================================
+|      Name      | Type  | Server# | Elapsed |   Cpu   |    IO    | Application | Concurrency |  Other   | Buffer | Read | Read  |  Cell   | Wait Events |
+|                |       |         | Time(s) | Time(s) | Waits(s) |  Waits(s)   |  Waits(s)   | Waits(s) |  Gets  | Reqs | Bytes | Offload | (sample #)  |
+==========================================================================================================================================================
+| PX Coordinator | QC    |         |    1.20 |    0.02 |          |        0.98 |        0.11 |     0.10 |      5 |      |     . |    NaN% |             |
+| p000           | Set 1 |       1 |    2.77 |    0.05 |     2.70 |             |             |     0.02 |    165 |   12 |   1MB |  75.55% |             |
+| p001           | Set 1 |       2 |    2.70 |    0.05 |     2.46 |             |             |     0.20 |    180 |   12 |   1MB |  76.96% |             |
+| p002           | Set 1 |       3 |    2.67 |    0.05 |     2.44 |             |             |     0.17 |    195 |   16 |   1MB |  74.81% |             |
+| p003           | Set 1 |       4 |    2.67 |    0.07 |     2.49 |             |             |     0.11 |    210 |   17 |   1MB |  75.49% |             |
+| p004           | Set 1 |       5 |    2.73 |    0.05 |     2.50 |             |             |     0.18 |    210 |   16 |   1MB |  74.94% |             |
+| p005           | Set 1 |       6 |    2.74 |    0.06 |     2.50 |             |             |     0.18 |    195 |   15 |   1MB |  75.00% |             |
+| p006           | Set 1 |       7 |    2.72 |    0.05 |     2.64 |             |             |     0.04 |    210 |   17 |   1MB |  75.79% |             |
+| p007           | Set 1 |       8 |    2.69 |    0.06 |     2.44 |             |             |     0.19 |    225 |   17 |   2MB |  74.81% |             |
+==========================================================================================================================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=418003122)
+===================================================================================================================================================================
+| Id |            Operation             |   Name   |  Rows   | Cost |   Time    | Start  | Execs |   Rows   | Read | Read  |  Cell   | Activity | Activity Detail |
+|    |                                  |          | (Estim) |      | Active(s) | Active |       | (Actual) | Reqs | Bytes | Offload |   (%)    |   (# samples)   |
+===================================================================================================================================================================
+|  0 | SELECT STATEMENT                 |          |         |      |         1 |     +4 |     1 |        1 |      |       |         |          |                 |
+|  1 |   SORT AGGREGATE                 |          |       1 |      |         1 |     +4 |     1 |        1 |      |       |         |          |                 |
+|  2 |    PX COORDINATOR                |          |         |      |         1 |     +4 |     9 |        8 |      |       |         |          |                 |
+|  3 |     PX SEND QC (RANDOM)          | :TQ10000 |       1 |      |         1 |     +4 |     8 |        8 |      |       |         |          |                 |
+|  4 |      SORT AGGREGATE              |          |       1 |      |         2 |     +3 |     8 |        8 |      |       |         |          |                 |
+|  5 |       PX BLOCK ITERATOR          |          |    176K |   52 |         2 |     +3 |     8 |     229K |      |       |         |          |                 |
+|  6 |        TABLE ACCESS STORAGE FULL | EMP_S    |    176K |   52 |         2 |     +3 |   106 |     229K |  122 |  11MB |  75.37% |          |                 |
+===================================================================================================================================================================
+
+
+SQL> @fsqlfcss
+Enter value for sql_id: 7aussyhsbck0u
+old  10: where sql_id='&&sql_id'
+new  10: where sql_id='7aussyhsbck0u'
+
+SqlID         ChildNo    AvgSecs Offloaded        ICMB       SSMB SqlText
+------------- ------- ---------- ---------- ---------- ---------- ----------------------------------------
+7aussyhsbck0u       0      11.89 No          10.765625          0 select /*+ OPT_PARAM('cell_offload_proce
+
+  1  select sql_id, child_number,
+  2    (elapsed_time/1000000)/
+  3       executions/
+  4        decode(px_servers_executions,0,1,px_servers_executions) avgelapsed,
+  5    decode(io_cell_offload_eligible_bytes,0,'No','Yes') eligible,
+  6    io_interconnect_bytes/1024/1024 icmb,
+  7    io_cell_offload_returned_bytes/1024/1024 ssmb,
+  8    sql_text
+  9  from gv$sql s
+ 10  where sql_id='&&sql_id'
+ 11* order by 1, 2, 3
+SQL> @sqlmonplan
+Enter value for sql_id: 7aussyhsbck0u
+old   1: select DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id=>'&sql_id',report_level=>'TYPICAL',type=>'TEXT') from dual
+new   1: select DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id=>'7aussyhsbck0u',report_level=>'TYPICAL',type=>'TEXT') from dual
+
+DBMS_SQLTUNE.REPORT_SQL_MONITOR(SQL_ID=>'7AUSSYHSBCK0U',REPORT_LEVEL=>'TYPICAL',TYPE=>'TEXT')
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+select /*+ OPT_PARAM('cell_offload_processing' 'false') */ count(*) from emp_s
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ Instance ID         :  1
+ Session             :  SYS (40:107)
+ SQL ID              :  7aussyhsbck0u
+ SQL Execution ID    :  16777216
+ Execution Started   :  06/14/2016 23:29:02
+ First Refresh Time  :  06/14/2016 23:29:02
+ Last Refresh Time   :  06/14/2016 23:29:14
+ Duration            :  12s
+ Module/Action       :  sqlplus@database (TNS V1-V3)/-
+ Service             :  SYS$USERS
+ Program             :  sqlplus@database (TNS V1-V3)
+ Fetch Calls         :  1
+
+Global Stats
+===========================================================================
+| Elapsed |   Cpu   |    IO    |  Other   | Fetch | Buffer | Read | Read  |
+| Time(s) | Time(s) | Waits(s) | Waits(s) | Calls |  Gets  | Reqs | Bytes |
+===========================================================================
+|      96 |    0.75 |       95 |     0.04 |     1 |   1595 |  122 |  11MB |
+===========================================================================
+
+Parallel Execution Details (DOP=8 , Servers Allocated=8)
+====================================================================================================================
+|      Name      | Type  | Server# | Elapsed |   Cpu   |    IO    |  Other   | Buffer | Read | Read  | Wait Events |
+|                |       |         | Time(s) | Time(s) | Waits(s) | Waits(s) |  Gets  | Reqs | Bytes | (sample #)  |
+====================================================================================================================
+| PX Coordinator | QC    |         |    0.05 |    0.01 |          |     0.04 |      5 |      |     . |             |
+| p000           | Set 1 |       1 |      13 |    0.10 |       13 |          |    195 |   15 |   1MB |             |
+| p001           | Set 1 |       2 |      13 |    0.10 |       13 |          |    210 |   15 |   1MB |             |
+| p002           | Set 1 |       3 |      11 |    0.07 |       11 |          |    180 |   14 |   1MB |             |
+| p003           | Set 1 |       4 |      13 |    0.09 |       13 |          |    210 |   18 |   1MB |             |
+| p004           | Set 1 |       5 |      11 |    0.10 |       11 |          |    210 |   15 |   1MB |             |
+| p005           | Set 1 |       6 |      13 |    0.11 |       12 |          |    195 |   14 |   1MB |             |
+| p006           | Set 1 |       7 |      11 |    0.10 |       11 |          |    195 |   17 |   1MB |             |
+| p007           | Set 1 |       8 |      11 |    0.07 |       11 |          |    195 |   14 |   1MB |             |
+====================================================================================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=418003122)
+=========================================================================================================================================================
+| Id |            Operation             |   Name   |  Rows   | Cost |   Time    | Start  | Execs |   Rows   | Read | Read  | Activity | Activity Detail |
+|    |                                  |          | (Estim) |      | Active(s) | Active |       | (Actual) | Reqs | Bytes |   (%)    |   (# samples)   |
+=========================================================================================================================================================
+|  0 | SELECT STATEMENT                 |          |         |      |         1 |    +12 |     1 |        1 |      |       |          |                 |
+|  1 |   SORT AGGREGATE                 |          |       1 |      |         1 |    +12 |     1 |        1 |      |       |          |                 |
+|  2 |    PX COORDINATOR                |          |         |      |         1 |    +12 |     9 |        8 |      |       |          |                 |
+|  3 |     PX SEND QC (RANDOM)          | :TQ10000 |       1 |      |         2 |    +11 |     8 |        8 |      |       |          |                 |
+|  4 |      SORT AGGREGATE              |          |       1 |      |        11 |     +2 |     8 |        8 |      |       |          |                 |
+|  5 |       PX BLOCK ITERATOR          |          |    176K |   52 |        11 |     +2 |     8 |     229K |      |       |          |                 |
+|  6 |        TABLE ACCESS STORAGE FULL | EMP_S    |    176K |   52 |        11 |     +2 |   106 |     229K |  122 |  11MB |          |                 |
+=========================================================================================================================================================
+
+
+SQL> @planfc
+Enter value for sql_id: 7aussyhsbck0u
+Enter value for child_no:
+old   1: select * from table(dbms_xplan.display_cursor('&sql_id','&child_no','typical'))
+new   1: select * from table(dbms_xplan.display_cursor('7aussyhsbck0u','','typical'))
+
+PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID  7aussyhsbck0u, child number 0
+-------------------------------------
+select /*+ OPT_PARAM('cell_offload_processing' 'false') */ count(*)
+from emp_s
+
+Plan hash value: 418003122
+
+----------------------------------------------------------------------------------------------------------------
+| Id  | Operation                      | Name     | Rows  | Cost (%CPU)| Time     |    TQ  |IN-OUT| PQ Distrib |
+----------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT               |          |       |    52 (100)|          |        |      |            |
+|   1 |  SORT AGGREGATE                |          |     1 |            |          |        |      |            |
+|   2 |   PX COORDINATOR               |          |       |            |          |        |      |            |
+|   3 |    PX SEND QC (RANDOM)         | :TQ10000 |     1 |            |          |  Q1,00 | P->S | QC (RAND)  |
+|   4 |     SORT AGGREGATE             |          |     1 |            |          |  Q1,00 | PCWP |            |
+|   5 |      PX BLOCK ITERATOR         |          |   175K|    52   (0)| 00:00:01 |  Q1,00 | PCWC |            |
+|*  6 |       TABLE ACCESS STORAGE FULL| EMP_S    |   175K|    52   (0)| 00:00:01 |  Q1,00 | PCWP |            |
+----------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   6 - storage(:Z>=:Z AND :Z<=:Z)
+
+Note
+-----
+   - dynamic sampling used for this statement (level=2)
+
+
+28 rows selected.
+
+SQL> select name ,value from v$sysstat where name like 'cell phy%';
+
+NAME                                                                  VALUE
+---------------------------------------------------------------- ----------
+cell physical IO interconnect bytes                              3497191992
+cell physical IO bytes saved during optimized file creation       314572800
+cell physical IO bytes saved during optimized RMAN file restore           0
+cell physical IO bytes eligible for predicate offload             476946432
+cell physical IO bytes saved by storage index                             0
+cell physical IO interconnect bytes returned by smart scan         61666872
+
+6 rows selected.
+
+SQL> select event,total_waits from v$system_event where event like '%smart%';
+
+EVENT                                                            TOTAL_WAITS
+---------------------------------------------------------------- -----------
+cell smart table scan                                                   1775
+cell smart file creation                                                1576
+cell smart flash unkeep                                                   18
+
+SQL>

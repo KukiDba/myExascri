@@ -1,0 +1,49 @@
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+drop table emp_s purge;
+create table emp_s tablespace sample as select * from scott.emp;
+
+select count(*) from emp_s;
+
+select table_name,degree,owner from dba_tables where table_name='EMP_S' and OWNER='SCOTT';
+
+select count(*) from emp_s;
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+select table_name,degree,owner from dba_tables where table_name='EMP_S' and OWNER='SCOTT';
+
+set lines 200
+col owner for a10
+col segment_name for a30
+col tablespace_name for a20
+select segment_name,bytes/1024/1024,owner,tablespace_name from dba_segments where segment_name='EMP_S';
+
+select count(*) from scott.emp_s;
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+select count(*) from emp_s;
+
+exit
+
+sqlplus / as sysdba
+
+select a.name, b.value/1024/1024 MB from v$sysstat a, v$mystat b where a.statistic# = b.statistic# and
+(a.name in ('physical read total bytes','physical write total bytes','cell IO uncompressed bytes')
+or a.name like 'cell phy%');
+
+create table sys.emp_noss tablespace SYSTEM as select * from sys.emp_s;
+
+set lines 200
+col owner for a10
+col segment_name for a30
+col tablespace_name for a20
+select segment_name,bytes/1024/1024,owner,tablespace_name from dba_segments where segment_name in ('EMP_S','EMP_NOSS');
+
+select count(*) from sys.emp_noss;

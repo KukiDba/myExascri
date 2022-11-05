@@ -1,0 +1,1402 @@
+How to enable flash cache compression:
+--------------------------------------
+1)cellcli -e ALTER CELL flashcachecompress=true
+2)cellcli -e Drop flashcache
+3)cellcli -e Drop flashlog
+4)cellcli -e Enable compression
+5)cellcli -e Create flashcache
+6)cellcli -e Create flashlog
+
+
+
+What is the default size of smart flash log:
+--------------------------------------------
+
+By default it will be 32 MB on each flash module and 512 MB on each storage server
+
+Each storage server contained 4 flash cards, each flash cards contains 4 flash modules so it is
+4*4*32=512 MB for each storage cell.
+
+What can be maximum size of smart flash log in each flash module:
+-----------------------------------------------------------------
+It must be less than 4GB
+
+How To Create Flashlog:
+-----------------------
+
+1)Creae FLashlog with default size:-------> cellcli -e  create flashlog all
+2)Creae FLashlog with Non default size----> cellcli -e  create flashlog all size=1G
+3)Verify the size :-----------------------> cellcli -e  list flashlog attributes size detail (Cellcli>describe flashlog)
+
+How To Drop Flashlog:
+-----------------------
+cellcli -e Drop flashlog
+
+
+********************************************************************************************************************
+
+In which scenario smart scan cannot be used:
+-------------------------------------------
+
+Scan on index organized table
+** Scan on clustered table
+** If the table has row level dependency tracking enabled
+** More than 255 columns are referenced in the query
+** LOB and LONG column is selected or queired
+** Data are encrypted and cell based decryption is disabled
+
+Which parameter is used to enable/disable smart scan on ASM disk group level?
+cell.smart_scan_capable
+
+Which parameter we can use to measure whether smart scan is working or not for any query?
+
+IO_CELL_OFFLOAD_ELIGIBLE_BYTES
+
+Which parameter is used to enable and disable the smart scan?
+cell_offload_processing
+
+Which statistics can be used to monitor smart scan for individual SQL statement?
+
+** IO_CELL_OFFLOAD_ELIGIBLE_BYTES
+** IO_CELL_OFFLOAD_RETURNED_BYTES
+** OPTIMIZED_PHY_READ_BYTES
+
+
+********************************************************************************************************************
+Power off Sequence
+------------------
+Shut down Database
+Stop CRS on all nodes
+Shut down Database server
+Shut down cell storage
+Power off network devices
+Remove power cables from PDUs
+
+Power on Sequence
+------------------
+Plug the power to PDUs
+Start network devices
+Start cell servers
+Start Database servers
+Start CRS and Database if automatic start-up is disabled
+
+
+
+Following are some of the most commonly referenced log/trace files and their
+locations:
+** /log/diag/asm/cell/{cell name}/trace
+** MS log—/opt/oracle/cell/log/diag/asm/cell/{cell name}/trace/ms-odl.log
+** OSWatcher logs—/opt/oracle.oswatcher/osw/archive
+** OS messages—/var/log/messages
+** Cell-patching-related logs—/var/log/cellos
+
+Interleaving is one of the policies to create a grid disk in an alternate fashion 
+between slower and faster tracks of the disks. This can be done by splitting cell into two regions, 
+one is outer region and second one is inner region.
+
+*******************************************************************************************************************
+di-->di/sks     Disks to discover [disks=raw,asm,all]
+s/tatus         Include disk header status [status=TRUE/(FALSE)]
+ds/cvgroup      Include group name [dscvgroup=TRUE/(FALSE)]
+o/p             KFOD options type [OP=DISKS/CANDIDATES/MISSING/GROUPS/INSTS/VERSION/CLIENTS/RM/RMVERS/DFLTDSTR/GPNPDSTR/METADATA/ALL]
+
+[oracle@database ambasa]$ kfod  di=all s=true ds=true -o all
+
+--------------------------------------------------------------------------------
+ Disk          Size Header    Path                                     Disk Group   User     Group
+================================================================================
+   1:        448 Mb MEMBER    o/192.168.56.101/data_CD_disk01_cell     DATA         <unknown> <unknown>
+   2:        448 Mb MEMBER    o/192.168.56.101/data_CD_disk02_cell     DATA         <unknown> <unknown>
+   3:        448 Mb MEMBER    o/192.168.56.101/data_CD_disk03_cell     DATA         <unknown> <unknown>
+   4:        448 Mb MEMBER    o/192.168.56.101/data_CD_disk04_cell     DATA         <unknown> <unknown>
+   5:        448 Mb MEMBER    o/192.168.56.101/data_CD_disk05_cell     DATA         <unknown> <unknown>
+   6:        448 Mb MEMBER    o/192.168.56.101/data_CD_disk06_cell     DATA         <unknown> <unknown>
+   7:        448 Mb MEMBER    o/192.168.56.101/reco_CD_disk07_cell     FRA          <unknown> <unknown>
+   8:        448 Mb MEMBER    o/192.168.56.101/reco_CD_disk08_cell     FRA          <unknown> <unknown>
+   9:        448 Mb MEMBER    o/192.168.56.101/reco_CD_disk09_cell     FRA          <unknown> <unknown>
+  10:        448 Mb MEMBER    o/192.168.56.101/reco_CD_disk10_cell     FRA          <unknown> <unknown>
+--------------------------------------------------------------------------------
+ORACLE_SID ORACLE_HOME
+================================================================================
+      +ASM /etc/oracle/grid
+[oracle@database ambasa]$
+
+
+*******************************************************************************************************************
+[root@cell3 raw]# dd if=/dev/zero of=disk01 bs=500000000 count=1
+1+0 records in
+1+0 records out
+500000000 bytes (500 MB) copied, 13.3024 seconds, 37.6 MB/s
+[root@cell3 raw]# pwd
+/opt/oracle/cell11.2.2.1.0_LINUX_101005/disks/raw
+[root@cell3 raw]#
+
+dd if=/dev/zero of=disk01 bs=500000000 count=1
+dd if=/dev/zero of=disk02 bs=500000000 count=1
+
+
+dd if=/dev/zero of=FLASH01 bs=500000000 count=1
+dd if=/dev/zero of=FLASH02 bs=500000000 count=1
+
+
+If backup performed internally
+------------------------------
+40% storage space allocation for DATA disk group
+60% storage space allocation for RECO disk group
+
+If backup performed externally
+------------------------------
+
+80% storage space allocation for DATA disk group
+
+
+#imageinfo -->Only Active
+#imageinfo all--------->Both Active/Inactive
+20% storage space allocation for RECO disk group
+
+
+[root@cell ~]# ethtool eth0
+Settings for eth0:
+        Supported ports: [ TP ]
+        Supported link modes:   10baseT/Half 10baseT/Full
+                                100baseT/Half 100baseT/Full
+                                1000baseT/Full
+        Supports auto-negotiation: Yes
+        Advertised link modes:  10baseT/Half 10baseT/Full
+                                100baseT/Half 100baseT/Full
+                                1000baseT/Full
+        Advertised auto-negotiation: Yes
+        Speed: 1000Mb/s--------------------------------------------->On my laptop 1GbE interface
+        Duplex: Full
+        Port: Twisted Pair
+        PHYAD: 0
+        Transceiver: internal
+        Auto-negotiation: on
+        Supports Wake-on: d
+        Wake-on: d
+        Current message level: 0x00000007 (7)
+        Link detected: yes
+[root@cell ~]#
+
+
+
+# ethtool eth9
+Settings for eth9:
+Supported ports: [ FIBRE ]
+Supported link modes: 1000baseT/Full
+10000baseT/Full
+Supports auto-negotiation: No
+Advertised link modes: 1000baseT/Full
+10000baseT/Full
+Advertised auto-negotiation: No
+Speed: 10000Mb/s--------------------------------------------->10GbE interface
+Duplex: Full
+Port: FIBRE
+PHYAD: 0
+Transceiver: external
+Auto-negotiation: on
+Supports Wake-on: umbg
+Wake-on: umbg
+Current message level: 0x00000007 (7)
+Link detected: yes---->3
+
+
+
+
+# grep -i bondeth0 ifcfg-eth*
+ifcfg-eth1:MASTER=bondeth0
+ifcfg-eth2:MASTER=bondeth0
+
+Download the appropriate patch file to the database server
+
+Uncompress the patch files. The files are uncompressed to the patch_release.date
+directory.
+
+. Create a file listing the InfiniBand switches that need to be updated, with one
+switch per line. The following is an example of the file:
+# cat ibswitches.lst
+myibswitch-01
+myibswitch-02
+
+. If the current switch release is 1.3.3-2, then set the environment variable
+EXADATA_IMAGE_IBSWITCH_ROLLBACK_VERSION to 1.3.3-2 using the
+following command:
+
+# export EXADATA_IMAGE_IBSWITCH_ROLLBACK_VERSION=1.3.3-2
+
+ Change to the patch_release.date directory.
+
+
+#./patchmgr -ibswitches ibswitches.lst -upgrade -ibswitch_precheck
+To Upgrade the switches using the following command:
+# ./patchmgr -ibswitches ibswitches.lst -upgrade
+
+
+Downgrading the Switch Software
+The only included downgrade is to release 2.1.5-1. Use the following commands to
+downgrade the firmware:
+# ./patchmgr -ibswitches ibswitches.lst -downgrade -ibswitch_precheck [-force]
+[-unkey]
+# ./patchmgr -ibswitches ibswitches.lst -downgrade
+
+
+CREATE TABLE ... COMPRESS FOR [QUERY LOW|QUERY HIGH|ARCHIVE LOW|ARCHIVE HIGH];
+ALTER TABLE table_name MOVE PARATITION partition_name COMPRESS FOR [QUERY LOW|QUERY HIGH|ARCHIVE LOW|ARCHIVE HIGH];
+alter table table_name move nocompress;
+
+How to disable storage index:
+-----------------------------
+
+"_kcfis_storageidx_disabled"
+
+alter session set "_kcfis_storageidx_disabled"=true;
+
+monitoring technologies for exadata
+ OSwatcher: /opt/oracle.oswatcher/osw
+ OEM      : Enterprise Manager Grid Control
+ ASR      : ASR stands for Automatic Service Request
+ SNMP : SNMP is Standard Network Management Protocol which is used manage devices over the network
+ IPMI : IPMI is Intelligent Platform Management Interface which is used to manages servers over the network
+        It includes field replaceable unit inventory reporting, logging of system events and system
+	recovery which includes system power on/off/reset.
+ ADR  : 
+ Exacheck : 
+ ILOM : ILOM stands for integrated Light Out Manager
+ 
+
+ ILOM Provide hardware errors and fault occurs
+* Remotely we can control the power state of the server
+* View graphical as well non graphical console of the server
+* View status of indicators and sensors on the system
+* Determine the hardware configuration of the system
+
+To monitor PDU We can monitor PDUs by physical check, OEM or ILOM.
+* Receive important notifications and message
+
+
+
+
+
+drop celldisk ALL flashdisk
+drop celldisk all harddisk force
+create celldisk all harddisk
+create celldisk all flashdisk
+--create celldisk all
+
+****************************************************************************************************************************
+
+Shutting Down Exadata Storage Server
+
+
+The following procedure describes how to power down Exadata Storage Server.
+1. (Optional) Run the following command to have the grid disks remain offline after
+restarting the cell:
+ALTER GRIDDISK ALL INACTIVE
+This step is useful if there are multiple restarts, or to control when the cell becomes
+active again, such as verifying the planned maintenance activity was successful
+before the cell is used.
+
+Note: If this step is performed, then it is necessary to perform step 6
+to activate the grid disks.
+
+
+2. Stop the cell services using the following command:
+CellCLI> ALTER CELL SHUTDOWN SERVICES ALL
+
+
+Powering Off Exadata Storage Servers
+
+# shutdown -h now
+
+When powering off Exadata Storage Servers, all storage services are automatically stopped.
+The following command restarts Exadata Storage Server immediately:
+# shutdown -r now
+
+Note : Stop/Shutdown the following before powering off Exadata Storage Servers:
+
+1) All database and Oracle Clusterware processes should be shut down prior to
+shutting down more than one Exadata Storage Server.
+
+2) Powering off one Exadata Storage Server does not affect running database
+processes or Oracle ASM.
+
+3) Powering off or restarting Exadata Storage Servers can impact database availability.
+
+4) The shutdown commands can be used to power off or restart database servers
+
+
+****************************************************************************************************************************
+
+What are the steps to follow for replacing flash disk?
+
+*** Inactivate all grid disks on the cell
+ALTER GRIDDISK ALL INACTIVE
+*** Shut down the cell.
+*** Replace the failed flash disk based on the PCI number and FDOM number.
+*** Power up the cell. The cell services are started automatically.
+
+*** Bring all grid disks online using the following command:
+
+CELLCLI> ALTER GRIDDISK ALL ACTIVE
+*** Verify that all grid disks have been successfully put online using the following command:
+CELLCLI> LIST GRIDDISK ATTRIBUTES asmmodestatus
+
+
+Each Exadata Storage Server is equipped with four PCIe cards. Each card has four
+flash disks (FDOMs) for a total of 16 flash disks. The four PCIe cards are present in PCI
+slot numbers 1, 2, 4, and 5. The PCIe cards are not hot-pluggable such that Exadata
+Storage Server must be powered down before replacing the flash disks or cards.
+
+To identify a failed flash disk, use the following command:
+
+CellCLI> LIST PHYSICALDISK WHERE DISKTYPE=flashdisk AND STATUS=failed DETAIL
+
+The following is an example of the output from a Sun Flash Accelerator F20 PCIe card:
+
+
+CellCLI> LIST PHYSICALDISK WHERE DISKTYPE=flashdisk AND STATUS=failed DETAIL
+name: FLASH_5_3
+diskType: FlashDisk
+luns: 5_3
+makeModel: "Sun Flash Accelerator F20 PCIe Card"
+physicalFirmware: D20Y
+physicalInsertTime: 2012-05-14T17:44:14-07:00
+physicalSerial: 1030M03UYM
+physicalSize: 22.8880615234375G
+slotNumber: "PCI Slot: 5; FDOM: 3"
+status: failed------------------------------------------------------------------------->Check Here
+The following is an example of the output from a Sun Flash Accelerator F40 PCIe card:
+name: FLASH_5_3
+diskType: FlashDisk
+luns: 5_3
+makeModel: "Sun Flash Accelerator F40 PCIe Card"
+physicalFirmware: TI35
+physicalInsertTime: 2012-07-13T15:40:59-07:00
+physicalSerial: 5L002X4P
+physicalSize: 93.13225793838501G
+slotNumber: "PCI Slot: 2; FDOM: 3"------------------------------->PCI Slot Number 2 and FDOM number 3
+status: failed or
+status: critical
+
+The card name and slotNumber attributes show the PCI slot and the FDOM number.
+
+
+****************************************************************************************************************************
+
+How to identify failed flash disk
+
+list physicaldisk where disktype=flashdisk and status!=normal detail
+list physicaldisk where disktype=flashdisk and status=critical detail
+
+
+A flash disk outage can cause reduction in performance and data redundancy. The
+failed disk should be replaced with a new flash disk at the earliest opportunity. If the
+flash disk is used for flash cache, then the effective cache size for the cell is reduced. If
+the flash disk is used for flash log, then flash log is disabled on the disk thus reducing
+the effective flash log size. If the flash disk is used for grid disks, then the Oracle ASM
+disks associated with these grid disks are automatically dropped with the FORCE
+option from the Oracle ASM disk group, and an Oracle ASM rebalance starts to restore
+the data redundancy.
+
+****************************************************************************************************************************
+
+What will happen to flash griddisks which are the part of ASM disk group
+after replacing the flash disk?
+
+If the flash disk is used for grid disks, then the grid disks will be re-created on the new flash disk.
+If those grid disks were part of an Oracle ASM disk group, then they will be added back to the disk
+group and the data will be rebalanced on them based on the disk group redundancy and
+ASM_POWER_LIMIT parameter.
+
+
+****************************************************************************************************************************
+What will happen if someone has removed wrong storage disk
+
+If someone has accidentally removed the wrong physical disk, then put the disk back. It will
+automatically be added back in the Oracle ASM disk group, and its data will be resynchronized
+
+****************************************************************************************************************************
+How to replace disk due to disk failure:
+----------------------------------------
+** Determine failed disk with command
+
+#CELLCLI> LIST PHYSICALDISK WHERE diskType=HardDisk AND status=critical DETAIL
+
+** Replace failed disk and wait for three minutes. Physical disk is hot pluggable so it can be done online.
+** Confirm the online disk
+#CELLCLI> LIST PHYSICALDISK
+** Verify firmware version
+CELLCLI>alter cell validate configuration
+
+****************************************************************************************************************************
+How to start LED to identify specific disk
+CELLCLI>alter physicaldisk disk_name serviceled on
+****************************************************************************************************************************
+How to move all drives from one storage cell to another?
+** Take backup of following directories
+/etc/hosts
+/etc/modprobe.conf
+/etc/sysconfig/network
+/etc/sysconfig/network-scripts
+** Shutdown storage cell
+** Move all the drive to another cell
+** Power on new storage cell
+** Check the above four directories , if they are corrupted than restore it with backup
+** Get hardware address by executing #ifconfig for each Ethernet port
+** Edit Ethernet configuration files with H/W address (ifcfg-eth0,eth1,eth2,eth3)
+** Restart cell server
+** Active grid disk, CELLCLI>alter griddisk all active
+** Validate configuration CELLCLI>alter cell validate configuration
+****************************************************************************************************************************
+
+Why/How to reset ILOM?
+
+If ILOM becomes unresponsive than manual intervention is required to reset the ILOM.
+
+Step 1) Login to ILOM remote console
+Step 2) Select Reset SP from maintenance tab
+Step 3 Click on Reset SP
+
+Note : We can anyone of the below method to reset ILOM
+
+Using IPMItool
+a) SSH
+b) Remote console connectivity
+c) Unplugging the ILOM power supply
+d) Physically pressing SP reset pin on storage or database server
+
+
+****************************************************************************************************************************
+
+To Monitor DB/Storage Server Temperature:
+
+#dcli -g /opt/oracle.SupportTools/onecommand/all_group -l root \ 'ipmitool sunoem cli "show /SYS/T_AMB" | grep value'
+
+****************************************************************************************************************************
+# /opt/oracle.SupportTools/ibdiagtools/verify-topology
+#/opt/oracle.SupportTools/ibdiagtools/verify-topology -t quarterrack
+
+Verify IB Switches below checks:
+--------------------------------
+
+Missing/Incorrectly-seated InfiniBand cable/connection
+Cable connected to the wrong endpoint
+
+****************************************************************************************************************************
+
+To get model of server or storage cell?
+# dmidecode -s system-product-name
+
+
+****************************************************************************************************************************
+How to replace infiniband switch?
+
+1) Disconnect the cables from the switch. All InfiniBand cables should have labels at both
+ends indicating their locations. If there are any cables that do not have labels, then label
+them.
+2) Power off both power supplies on the switch by removing the power plugs
+3) Remove the switch from the rack
+4) Install the new switch in the rack
+5) Restore the switch settings using the backup
+6) Disable the Subnet Manager using the disablesm command
+7) Connect the cables to the new switch. Make sure to connect each cable to the correct port
+8) Run the following command on any of the servers:
+/opt/oracle.SupportTools/ibdiagtools/verify-topology
+9) Run the following command on any host to verify that there are no errors on any of the
+links in the fabric:
+ibdiagnet -c 1000 –r
+10) Enable the Subnet Manager using the enablesm command
+
+****************************************************************************************************************************
+
+There are two two most commonly used tools for Exadata Health Check.
+
+1. Sundiag
+2. Exachk
+
+Sundiag is for checking exadata disks status, while Exachk is for checking overall health of Exadata machine software.
+
+****************************************************************************************************************************
+
+
+
+
+This appendix lists the replacement units for Oracle Exadata Database Machine and
+Oracle Exadata Storage Expansion Rack. There are two types of replacement units,
+FRUs (field replaceable units), and CRUs (customer replaceable units). FRUs are
+installed by trained Oracle field technicians. CRUs are installed by the customer
+
+Category Description Scenario Examples
+Hot Swap (HS) Repair part is hot swappable, and may be
+replaced without shutting down the host
+system. Commands may be needed before
+and after replacement to protect data.
+** Disks
+** Fans
+** Power supplies
+Infrastructure Repair
+(IR)
+Repair of connectivity component within
+Oracle Exadata Rack. No downtime of the
+rack is required, however, individual
+components may require downtime.
+** External cables
+** InfiniBand switch
+** Ethernet switch
+** KVM switch/KMM
+tray
+
+
+
+Database Server Offline (DBO)
+Repair of the part requires one database
+server in Oracle Exadata Database
+Machine be shut down. No downtime of
+the rack is required, however individual
+server nodes may require downtime and
+be taken outside of the cluster temporarily.
+If the system is currently running, then it
+should be shut down gracefully. See
+"Powering On and Off Oracle Exadata
+Rack" on page 1-4 for additional
+information.
+If monitoring the system using Oracle
+Enterprise Manager Grid Control, then
+avoid unnecessary alerts by putting the
+target in a blackout state. Refer to Oracle
+Enterprise Manager Administration for
+additional information.
+** System boards
+** PCIe cards
+** Memory
+** Processors
+** Power distribution
+units
+Exadata Storage Server Offline (EBO)
+Repair of the part requires one Exadata
+Storage Server within Oracle Exadata Rack
+be shut down. No downtime of the rack is
+required, however individual server nodes
+may require downtime and be taken
+outside of the cluster temporarily.
+Temporary performance impact due to
+rebalancing to maintain data redundancy
+may occur.
+If the system is currently running, then it
+should be shut down gracefully. See
+"Powering On and Off Oracle Exadata
+If monitoring the system using Oracle
+Enterprise Manager Grid Control, then
+avoid unnecessary alerts by putting the
+target in a blackout state. Refer to Oracle
+Enterprise Manager Administration for
+additional information.
+** System boards
+** PCIe cards
+** Memory
+** Processors
+
+****************************************************************************************************************************
+
+Patching order is not fixed but it is recommended as per below order to mitigate risks.
+**Infiniband Switch
+**Storage Cell
+**Database Server
+**GRID and RDBMS
+**PDUs
+
+****************************************************************************************************************************
+
+To rollback database server patch to previous version?
+dbnodeupdate.sh –r
+
+****************************************************************************************************************************
+
+In rolling patching for GRID and RDBMS on database server:
+----------------------------------------------------------
+**Stop Oracle Home
+**Patch Oracle Home
+**Stop CRS
+**Unlock Grid Home
+**Patch Grid Home
+**Start CRS
+**Lock Grid Home
+**Start Oracle Home
+
+****************************************************************************************************************************
+
+Utility is used to patch GRID and RDBMS
+**OPatch
+**OPlan
+
+To determine whether Oracle patch is rolling or not
+$opatch query -is_rolling_patch [unzipped patch location]
+
+****************************************************************************************************************************
+Entire patching activity done by patchmgr utility automatically.
+
+**To ensure good backup exists, USB recovery media is recreated
+**Check cells have ssh equivalence for root user
+**Initialize files, check space and state of cell services
+**Copy, extract prerequisite check archive to cells
+**Check prerequisites on cell
+**Copy the patch to cell
+**Execute plug-in check for Patch Check Prerequisites
+**Initiate patch on cell
+**Reboot the cell
+**Execute plug-in check for Patching
+**Finalize patch
+**Reboot the cell
+**Check the state of patch
+**Execute plug-in check for Post Patch
+****************************************************************************************************************************
+
+Database alert.log
+$ORACLE_BASE/diag/rdbms/{DBNAME}/{sid}/trace/alert_{sid}.log
+Ex: /u01/app/oracle/diag/rdbms/dbfs/DBFS2/trace/alert_DBFS2.log
+**ASM alert.log
+$ORACLE_BASE/diag/asm/+asm/+ASM{instance number}/trace/ alert_+ASM {instance
+number}.log
+Ex: /u01/app/oracle/diag/asm/+asm/+ASM2/trace/alert_+ASM2.log
+**Clusterware CRS alert.log
+$GRID_HOME/log/{node name}/alert{node name}.log
+Ex: /u01/app/11.2.0/grid/log/dmorldb02/alertdmorldb02.log
+**Diskmon logfiles
+$GRID_HOME/log/{node name}/diskmon/diskmon.lo*
+Ex: /u01/app/11.2.0/grid/log/dmorldb02/diskmon/diskmon.log
+**OS Watcher output files
+/opt/oracle.oswatcher/osw/archive/
+To get OS watcher data of specific date :
+#cd /opt/oracle.oswatcher/osw/archive
+#find . -name '*12.01.13*' -print -exec zip /tmp/osw_`hostname`.zip {} ;
+it's yy.mm.dd format i.e 12- year 01- Month 13-day
+**OS message logfile
+/var/log/messages
+**VM Core files for Linux
+/u01/crashfiles
+More details can be found in the following note:Where / How to find OS crashcore file in Exadata
+Systems [Linux] (Doc ID 1389225.1)
+**Disk controller firmware logs:
+/opt/MegaRAID/MegaCli/Megacli64 -fwtermlog -dsply -a0
+**************************************************************************************************************************
+
+Reimaging a Database Server:
+----------------------------
+If a database server must be replaced or rebuilt from scratch and there is no backup image to recover
+from, an image can be created from an install image provided by Oracle Support. It is a lengthy and
+highly complicated process, but we’ll hit the highlights here so you get a general idea of what this
+process involves.
+Before the server can be reimaged it must be removed from the RAC cluster. This is the standard
+procedure for deleting a node from any 11gR2 RAC cluster. First the listener on the failed server must be
+shut down and disabled. Then the ORACLE_HOME for the database binaries is removed from the Oracle
+inventory. The VIP is then stopped and removed from the cluster configuration and the node deleted
+from the cluster. Finally the ORACLE_HOME for the Grid Infrastructure is removed from the Oracle
+inventory.
+Oracle Support will provide you with a computeImageMaker file that is used for creating an install
+image from one of the surviving database servers. This image maker file is specific to the version and
+platform of your Exadata system and will be named as follows:
+computeImageMaker_{exadata_release}_LINUX.X64_{release_date}.{platform}.tar.zip
+An external USB flash drive is used to boot the recovery image on the failed server. The USB drive
+doesn’t need to be very big, a 2–4GB thumb drive can be used. The next step is to unzip the image maker
+file you downloaded from Oracle Support on one of the other Exadata database servers in your rack. A
+similar recovery processes for storage cells uses the first USB drive found on the system, so before
+proceeding you should remove all other external USB devices from the system. To create a bootable
+system image for recovering the failed database server, you will run the makeImageMedia.sh script; it
+prompts you for system-specific settings it will need to apply to the failed server during the reimaging
+process. When the makeImageMedia.sh script completes, you are ready to install the image on your failed
+server. Remove the USB drive from the good server and plug it into the failed server. Login to the ILOM
+on the failed server and reboot it. When the server boots up it will automatically find the bootable
+recovery image on the external USB drive and begin the reimaging process. From this point, the process
+is automated. First it will check the firmware and BIOS versions on the server and update them as
+needed to match them with your other database servers. Don’t expect this to do anything if you are
+reimaging a server that was already part of your Exadata system, but it is necessary if the damaged server
+has been replaced with new equipment. Once the hardware components are up to date, a new image
+will be installed. When the reimaging process is complete you can unplug the external USB drive and
+power cycle the server to boot up the new system image.
+When the reimaging process is complete and the database server is back online it will be set to
+factory defaults. Depending on the patch level of the install image you downloaded from Oracle Support,
+you may need to reinstall software patches on the server to make it current with the rest of your Exadata
+system. You will also need to reconfigure all other site-specific settings such as host name, IP addresses,
+NTP server, DNS, and user and group accounts. For all intents and purposes you should think of the
+reimaged server as a brand-new server. Oracle has done an excellent job of improving the product with
+every release. Perhaps in the near future, we can look forward to a reimaging process that automatically
+configures most of the site-specific settings for you. Once the operating system is configured, you will
+need to reinstall the Grid Infrastructure and database software and add the node back into the cluster.
+This is a well documented process that many RAC DBAs refer to as the “add node” procedure. If you’re
+not familiar with the process, let us reassure you. It’s not nearly as daunting or time-consuming as you
+might think. Once you have the operating system prepared for the install, much of the heavy lifting is
+done for you by the Oracle Installer. The Exadata Owner’s Guide does an excellent job of walking you
+through each step of the process.
+**************************************************************************************************************************
+
+Recovering the Storage Cell
+Storage cell recovery is a very broad subject. It can be as simple as replacing an underperforming or
+failed data disk and as complex as responding to a total system failure such as a malfunctioning chip on
+the motherboard. In this section we’ll be discussing various types of cell recovery including removing
+and replacing physical disks, failed flash cache modules, and what to do if an entire storage cell dies and
+must be replaced.
+
+**************************************************************************************************************************
+
+System Volume Failure
+----------------------
+Recall that the first two disks in the storage cell contain the Linux operating system and are commonly
+referred to as the “system volumes.” Exadata protects these volumes using software mirroring through
+the O/S. Even so, certain situations may require you to recover these disks from backup. Some reasons
+for performing cell recovery would include:
+• System volumes (disks 1 and 2) fail simultaneously.
+• The boot partition is damaged beyond repair.
+• File systems become corrupted.
+• A patch installation or upgrade fails.
+
+If you find yourself in any of these situations, it may be necessary, or at least more expedient, to
+recover the system volumes from backup. As discussed earlier, Exadata automatically maintains a
+backup of the last good boot configuration using a 4GB internal USB flash drive called the CELLBOOT
+USB flash drive. Recovering the system volumes using this internal USB flash disk is commonly referred
+to as the storage cell rescue procedure. The steps for performing the cell rescue procedure basically
+involve booting from the internal USB drive and following the prompts for the type of rescue you want to
+perform. By the way, since Exadata comes equipped with an ILOM (Integrated Lights Out Management
+module), you can perform all cell recovery operations remotely, across the network. There is no need to
+stand in front of the rack to perform a full cell recovery from the internal USB flash disk.
+As you might imagine, this type of recovery should not be done without the assistance of Oracle
+Support. This section is not intended to be a step-by-step guide to cell recovery, so we’re not going to go
+into all the details of cell recovery from the CELLBOOT USB flash disk here. The Oracle documentation
+should be used for that, but we will take a look at what to consider before starting such a recovery.
+Cell Disks and Grid Disks: The rescue procedure restores the Linux system
+volumes only. Cell disks and their contents are not restored by the rescue
+procedure. If these partitions are damaged they must be dropped and recreated.
+Once the grid disks are online, they can be added back to the ASM disk
+group and a subsequent rebalance will restore the data.
+ASM Redundancy: Recovering a storage cell from USB backup can potentially
+cause the loss of all data on the system volumes. This includes your database
+data in the grid disks on these disk drives. If your ASM disk groups use Normal
+redundancy, we strongly recommend making a database backup before
+performing cell recovery from USB disk. With ASM High redundancy, you have
+two mirror copies of all your data, so it is safe to perform cell recovery without
+taking database backups. Even so, we’d still take a backup if at all possible. The
+recovery process does not destroy data volumes (cell/grid disks) unless you
+explicitly choose to do so when prompted by the rescue procedure.
+Software and Patches: As of version 11.2 of the storage cell software, the rescue
+procedure will restore the cell to its former state, patches included, when the
+backup was taken. Also included in the restore are the network settings and
+SSH keys for the root, celladmin, and cellmonitor accounts. The alert settings
+and SMTP configuration (including email addresses) for alert notification will
+not be restored. Reconfiguring these settings is a trivial task and can be done
+using another cell to determine the correct settings to apply.
+
+**************************************************************************************************************************
+
+Cell Rescue Options:
+--------------------
+There are two main rescue options, Partial Reconstruction and Full Recovery. As you might guess, a
+partial reconstruction attempts to preserve as much of your current configuration as possible, while a
+full recovery wipes your system and resets it back to the last good configuration it knows about.
+Partial Reconstruction: If this option is chosen, the rescue procedure will repair
+the partitions without damaging the file systems. It scans for file systems on
+these partitions, and if they are found will try to reboot using them. If the cell
+reboots successfully, you can use the CellCLI command to check the integrity
+of the cell configuration. If the cell fails to reboot, a full recovery must be
+performed to repair the damaged system volumes.
+Full Recovery: A full recovery destroys and re-creates all system partitions and
+re-creates the file systems from scratch. It then restores the system volumes
+from backup. There are two files that are too big to fit on the internal USB flash
+drive, the kernel-debuginfo, and kernel-debuginfo-common RPMs. These files
+must be reinstalled before you can use crash kernel support. If full recovery is
+performed, you will need to reconfigure the cell alert and SMTP configuration.
+It is important, so I’ll repeat it. Cell and grid disks are not overwritten by this
+process. You will, however, need to re-import the cell disks before they can be
+used.
+So, what happens if for some reason, the internal CELLBOOT USB flash disk cannot be used for the
+rescue procedure? If this happens you can boot the storage cell from an external USB drive containing a
+backup copy of the CELLBOOT USB flash disk. The process is the same as it is for performing cell rescue
+using the internal CELLBOOT USB flash disk.
+
+**************************************************************************************************************************
+
+Rolling Back a Failed Patch:
+----------------------------
+Exadata storage cells come equipped with what Oracle calls a validation framework. This framework is a
+set of tests that are run at the end of the boot process. The validation script is called vldrun and is called
+from /etc/rc.local, as can be seen in the following listing:
+> cat /etc/rc.d/rc.Oracle.Exadata
+...
+# Perform validations step
+/opt/oracle.cellos/vldrun -all
+...
+In addition to the regular validations that are run every time the system boots, other validations are
+run under certain circumstances. For example, after the cell is patched or upgraded, or the system is
+recovered using the storage cell rescue procedure, validations are run to ensure that the configuration
+and software are all intact. The validation framework writes its output to the
+/var/log/cellos/validations directory, as you can see in the following listing:
+> ls -l /var/log/cellos/validations
+total 184
+-rw-r----- 1 root root 685 Dec 17 11:41 beginfirstboot.log
+-rw-r----- 1 root root 3982 Dec 31 12:37 biosbootorder.log
+-rw-r----- 1 root root 2537 Dec 17 11:26 cellcopymetadata.log
+-rw-r----- 1 root root 268 Dec 31 12:37 celldstatus.log
+-rw-r----- 1 root root 3555 Jan 21 21:07 checkconfigs.log
+-rw-r----- 1 root root 1612 Dec 31 12:37 checkdeveachboot.log
+-rw-r----- 1 root root 257 Dec 17 11:41 createcell.log
+-rw-r----- 1 root root 1233 Dec 31 12:37 ipmisettings.log
+-rw-r----- 1 root root 3788 Dec 31 12:37 misceachboot.log
+-rw-r----- 1 root root 13300 Dec 17 11:26 misczeroboot.log
+-rw-r----- 1 root root 228 Dec 31 12:37 oswatcher.log
+-rw-r----- 1 root root 34453 Dec 17 11:26 postinstall.log
+-rw-r----- 1 root root 4132 Dec 31 12:38 saveconfig.log
+-rw-r----- 1 root root 65 Jan 21 12:49 sosreport.log
+-rw-r----- 1 root root 75 Dec 17 11:26 syscheck.log
+-rw-r----- 1 root root 70873 Dec 17 11:44 upgradecbusb.log
+As discussed in the “Active and Inactive System Volumes” section of this chapter, Exadata storage
+cells maintain two sets of system volumes, which contain the Linux operating system and storage cell
+software. By maintaining separate Active and Inactive system images, Exadata ensures that failed out-ofpartition
+upgrades do not cause an outage to the databases. If the validation tests detect a problem after
+an out-of-partition upgrade, Exadata will automatically fail back to the last good configuration by
+switching the Active and Inactive system volumes. For in-partition patches, Exadata will reapply all the
+settings and files changed by the patch from online backups. Following the first boot-up after installing a
+patch or upgrade the validation results can be found in the log file,
+/var/log/cellos/vldrun.first_boot.log. Validation tests will be logged to the
+/var/log/cellos/validations.log file for all subsequent reboots. The patch rollback procedure can be
+performed manually, but there is no mention of it in the documentation, so it is probably not something
+Oracle expects administrators to run without the help of Oracle Support.
+**************************************************************************************************************************
+
+Simulated Disk Failure
+In this section we’re going to test what happens when a cell disk fails. The system used for these tests
+was a quarter rack, Exadata V2. We’ve created a disk group called SCRATCH_DG, defined as follows:
+
+
+SYS:+ASM2> CREATE DISKGROUP SCRATCH_DG NORMAL REDUNDANCY
+FAILGROUP CELL01 DISK 'o/192.168.12.3/SCRATCH_DG_CD_05_cell01'
+FAILGROUP CELL02 DISK 'o/192.168.12.4/SCRATCH_DG_CD_05_cell02'
+FAILGROUP CELL03 DISK 'o/192.168.12.5/SCRATCH_DG_CD_05_cell03'
+attribute 'compatible.rdbms'='11.2.0',
+'compatible.asm' ='11.2.0',
+'au_size'='4M',
+'cell.smart_scan_capable'='true';
+
+
+Notice that this disk group is created using three grid disks. Following Exadata best practices, we’ve
+used one grid disk from each storage cell. It’s interesting to note that even if we hadn’t specified three
+failure groups with one disk in each, ASM would have done so automatically. We then created a small,
+single-instance database called SCRATCH using this disk group. The disk group is configured with normal
+redundancy (two mirror copies for each block of data), which means our database should be able to
+suffer the loss of one cell disk without losing access to data or causing a crash. Since each grid disk
+resides on a separate storage cell, we could even suffer the loss of an entire storage cell without losing
+data. We’ll discuss what happens when a storage cell fails later in the chapter.
+In a moment we’ll take a look at what happens when a grid disk is removed from the storage cell (a
+simulated disk failure). But before we do, there are a few things we need to check:
+
+• Verify that no rebalance or other volume management operations are running.
+• Ensure that all grid disks for the SCRATCH_DG disk group are online.
+• Verify that taking a disk offline will not impact database operations.
+• Check the disk repair timer to ensure the disk is not automatically dropped before
+we can bring it back online again.
+
+There are a couple of ways to verify that volume management activity is not going on. First let’s
+check the current state of the disk groups using asmcmd. The ls –l command shows the disk groups, the
+type of redundancy, and whether or not a rebalance operation is currently under way. By the way, you
+could also get this information using the lsdg command, which also includes other interesting
+information like space utilization, online/offline status, and more. The Rebal column in the following
+listing indicates that no rebalance operations are executing at the moment.
+> asmcmd -p
+ASMCMD [+] > ls -l
+State Type Rebal Name
+MOUNTED NORMAL N DATA_DG/
+MOUNTED NORMAL N RECO_DG/
+MOUNTED NORMAL N SCRATCH_DG/
+MOUNTED NORMAL N STAGE_DG/
+MOUNTED NORMAL N SYSTEM_DG/
+
+Notice that not all volume management operations are shown in the asmcmd commands. If a grid
+disk has been offline for a period of time, there may be a considerable amount of backlogged data that
+must be copied to it in order to bring it up to date. Depending on the volume of data, it may take several
+minutes to finish resynchronizing a disk. Although this operation is directly related to maintaining
+balance across all disks, it is not technically a “rebalance” operation. As such, it will not appear in the
+listing. For example, even though the ls –l command in the previous listing showed a status of N for
+rebalance operations, you can clearly see that a disk is currently being brought online by running the
+next query:
+
+SYS:+ASM2> select dg.name, oper.operation, oper.state
+from gv$asm_operation oper,
+gv$asm_diskgroup dg
+where dg.group_number = oper.group_number
+and dg.inst_id = oper.inst_id;
+NAME OPERATION
+-------------------------------------------------- ----------
+SCRATCH_DG ONLINE
+
+
+Checking for the online/offline state of a disk is a simple matter of running the following query from
+SQL*Plus. In the listing below you can see that the SCRATCH_CD_05_CELL01 disk is offline by its
+MOUNT_STATE of MISSING and HEADER_STATUS of UNKNOWN:
+SYS:+ASM2> select d.name, d.MOUNT_STATUS, d.HEADER_STATUS, d.STATE
+from v$asm_disk d
+where d.name like 'SCRATCH%'
+order by 1;
+NAME MOUNT_S HEADER_STATU STATE
+-------------------------------------------------- ------- ------------ ----------
+SCRATCH_CD_05_CELL01 MISSING UNKNOWN NORMAL
+SCRATCH_CD_05_CELL02 CACHED MEMBER NORMAL
+SCRATCH_CD_05_CELL03 CACHED MEMBER NORMAL
+
+
+
+Still, perhaps a better way of checking the status of all disks in the SCRATCH_DG disk group would be to
+check the mode_status in V$ASM_DISK_STAT. The following listing shows that all grid disks in the
+SCRATCH_DG disk group are online:
+SYS:+ASM2> select name, mode_status from v$asm_disk_stat where name like 'SCRATCH%';
+NAME MODE_ST
+-------------------------------------------------- -------
+SCRATCH_CD_05_CELL03 ONLINE
+SCRATCH_CD_05_CELL01 ONLINE
+SCRATCH_CD_05_CELL02 ONLINE
+The next thing we’ll look at is the disk repair timer. Recall that the disk group attribute
+disk_repair_time determines the amount of time ASM will wait before it permanently removes a disk
+from the disk group and rebalances the data to the surviving grid disks when read/write errors occur.
+Before taking a disk offline we should check to see that this timer is going to give us enough time to bring
+the disk back online before ASM automatically drops it. This attribute can be displayed using SQL*Plus
+and running the following query. (By the way, the V$ASM views are visible whether you are connected to
+an ASM instance or a database instance.)
+SYS:+ASM2> select dg.name "DiskGoup",
+attr.name,
+attr.value
+from v$asm_diskgroup dg,
+v$asm_attribute attr
+where dg.group_number = attr.group_number
+and attr.name = 'disk_repair_time';
+
+
+DiskGoup NAME VALUE
+----------------- ------------------------- ----------
+DATA_DG disk_repair_time 72h
+RECO_DG disk_repair_time 72h
+SCRATCH_DG disk_repair_time 8.5h
+STAGE_DG disk_repair_time 72h
+SYSTEM_DG disk_repair_time 72h
+The default value for the disk repair timer is 3.6 hours. In production systems you will want to set
+the timer high enough for you to resolve transient disk errors. These errors occur when a storage cell is
+rebooted or when a disk is temporarily taken offline but on rare occasion, they can also occur
+spontaneously. Sometimes simply pulling a disk out of the chassis and reinserting it will clear
+unexpected transient errors. Any data that would normally be written to the failed disk will queue up
+until the disk is brought back online or the disk repair time expires. If ASM drops a disk, it can be
+manually added back into the disk group but it will require a full rebalance which can be a lengthy
+process. The following command was used to set the disk repair timer to 8.5 hours for the SCRATCH_DG
+disk group:
+SYS:+ASM2> alter diskgroup SCRATCH_DG set attribute 'disk_repair_time'='8.5h';
+Now, let’s verify whether taking a cell disk offline will affect the availability of the disk group. We can
+do that by checking the asmdeactivationoutcome and asmmodestatus attributes of our grid disks. For
+example, the following listing shows the output from the LIST GRIDDISK command when a grid disk in a
+normal redundancy disk group is taken offline. In this example, we have a SCRATCH_DG disk group
+consisting of one grid disk from three failure groups (enkcel01, enkcel02, and enkcel03). First we’ll check
+the status of the grid disks when all disks are active:
+[enkdb02:root] /root
+> dcli -g cell_group -l root "su - celladmin -c \"cellcli -e list griddisk \
+attributes name, asmdeactivationoutcome, asmmodestatus \"" | grep SCRATCH
+enkcel01: SCRATCH_DG_CD_05_cell01 Yes ONLINE
+enkcel02: SCRATCH_DG_CD_05_cell02 Yes ONLINE
+enkcel03: SCRATCH_DG_CD_05_cell03 Yes ONLINE
+
+Now, we’ll deactivate one of these the grid disks at the storage cell and run the command again:
+CellCLI> alter griddisk SCRATCH_DG_CD_05_cell01 inactive
+GridDisk SCRATCH_DG_CD_05_cell01 successfully altered
+[enkdb02:root] /root
+> dcli -g cell_group -l root "su - celladmin -c \"cellcli -e list griddisk \
+attributes name, asmdeactivationoutcome, asmmodestatus \"" | grep SCRATCH
+enkcel01: SCRATCH_DG_CD_05_cell01 Yes OFFLINE
+enkcel02: SCRATCH_DG_CD_05_cell02 "Cannot de-activate due to other offline disks in the
+diskgroup" ONLINE
+enkcel03: SCRATCH_DG_CD_05_cell03 "Cannot de-activate due to other offline disks in the
+diskgroup" ONLINE
+As you can see, the asmmodestatus attribute of the offlined grid disk is now set to OFFLINE, and the
+asmdeactivationoutcome attribute of the other two disks in the disk group warns us that these grid disks
+cannot be taken offline. Doing so would cause ASM to dismount the SCRATCH_DG disk group disk group.
+
+Note: Notice that we use the dcli command to run the CellCLI command LIST GRIDDISK ATTRIBUTES on
+each cell in the storage grid. Basically, dcli allows us to run a command concurrently on multiple nodes. The
+cell_group parameter is a file containing a list of all of our storage cells.
+
+If the output from the LIST GRIDDISK command indicates it is safe to do so, we can test what
+happens when we take one of the grid disks for our SCRATCH_DG disk group offline. For this test we will
+physically remove the disk drive from the storage cell chassis. The test configuration will be as follows:
+• For this test we will create a new tablespace with one datafile. The datafile is set to
+autoextend so it will grow into the disk group as data is loaded.
+• Next, we’ll generate a considerable amount of data in the tablespace by creating a
+large table; a couple of billion rows from DBA_SEGMENTS should do it.
+• While data is being loaded into the large table, we will physically remove the disk
+from the cell chassis.
+• Once the data is finished loading, we will reinstall the disk and observe Exadata’s
+automated disk recovery in action.
+
+The first order of business is to identify the location of the disk drive within the storage cell. To do
+this we will use the grid disk name to find the cell disk it resides on, then we’ll use the cell disk name to
+find the slot address of the disk drive within the storage cell. Once we have the slot address we will turn
+on the service LED on the front panel so we know which disk to remove.
+From storage cell 3, we can use the LIST GRIDDISK command to find the name of the cell disk we are
+looking for:
+CellCLI> list griddisk attributes name, celldisk where name like 'SCRATCH.*' detail
+name: SCRATCH_DG_CD_05_cell03
+cellDisk: CD_05_cell03
+
+
+
+Now that we have the cell disk name, we can use the LIST LUN command to find the slot address of
+the physical disk we want to remove. In the following listing we see the slot address we’re looking for,
+16:5.
+CellCLI> list LUN attributes celldisk, physicaldrives where celldisk=CD_05_cell03 detail
+cellDisk: CD_05_cell03
+physicalDrives: 16:5
+With the slot address, we can use the MegaCli64 command to activate the drive’s service LED on the
+front panel of the storage cell. Note that the \ characters in the MegaCli64 command below are used to
+prevent the Bash shell from interpreting the brackets ([]) around the physical drive address. (Single
+quotes work as well, by the way.)
+/opt/MegaRAID/MegaCli/MegaCli64 -pdlocate -physdrv \[16:5\] -a0
+
+The amber LED on the front of the disk drive should be flashing as can be seen
+
+And in case you were wondering, the service LED can be turned off again using the stop option of
+the MegaCli64 command, like this:
+/opt/MegaRAID/MegaCli/MegaCli64 -pdlocate –stop -physdrv \[16:5\] -a0
+Now that we’ve located the right disk, we can remove it from the storage cell by pressing the release
+button and gently pulling the lever on the front of the disk.
+
+
+Note: All disk drives in the storage cell are hot-pluggable and may be replaced without powering down the
+storage cell.
+
+
+Checking the grid disk status in CellCLI, we see that it has been changed from Active to Inactive.
+This makes the grid disk unavailable to the ASM storage cluster
+
+
+CellCLI> list griddisk where name = 'SCRATCH_CD_05_cell03';
+SCRATCH_CD_05_cell03 inactive
+ASM immediately notices the loss of the disk, takes it offline, and starts the disk repair timer. The
+ASM alert log (alert_+ASM2.log) shows that we have about 8.5 hours (30596/60/60) to bring the disk back
+online before ASM permanently drops it from the disk group:
+alert_+ASM1.log
+--------------------
+Tue Dec 28 08:40:54 2010
+GMON checking disk modes for group 5 at 121 for pid 52, osid 29292
+Errors in file /u01/app/oracle/diag/asm/+asm/+ASM2/trace/+ASM2_gmon_5912.trc:
+ORA-27603: Cell storage I/O error, I/O failed on disk o/192.168.12.5/SCRATCH_CD_05_cell03 at
+offset 4198400 for data length 4096
+ORA-27626: Exadata error: 201 (Generic I/O error)
+WARNING: Write Failed. group:5 disk:3 AU:1 offset:4096 size:4096
+...
+WARNING: Disk SCRATCH_DG_CD_05_CELL03 in mode 0x7f is now being offlined
+WARNING: Disk SCRATCH_DG_CD_05_CELL03 in mode 0x7f is now being taken offline
+...
+Tue Dec 28 08:43:21 2010
+WARNING: Disk (SCRATCH_DG_CD_05_CELL03) will be dropped in: (30596) secs on ASM inst: (2)
+Tue Dec 28 08:43:23 2010
+The status of the disk in ASM can be seen using the following query from one of the ASM instances.
+Notice that the SCRATCH disk group is still mounted (online):
+SYS:+ASM2> select dg.name, d.name, dg.state, d.mount_status, d.header_status, d.state
+from v$asm_disk d,
+v$asm_diskgroup dg
+where dg.name = 'SCRATCH_DG'
+and dg.group_number = d.group_number
+order by 1,2;
+NAME NAME STATE MOUNT_S HEADER_STATU STATE
+------------- ---------------------------- ---------- ------- ------------ ----------
+SCRATCH SCRATCH_DG_CD_05_CELL01 MOUNTED CACHED MEMBER NORMAL
+SCRATCH SCRATCH_DG_CD_05_CELL02 MOUNTED CACHED MEMBER NORMAL
+SCRATCH SCRATCH_DG_CD_05_CELL03 MOUNTED MISSING UNKNOWN NORMAL
+While the disk is offline, ASM continues to poll its status to see if the disk is available. We see the
+following query repeating in the ASM alert log:
+alert_+ASM1.log
+--------------------
+WARNING: Exadata Auto Management: OS PID: 5918 Operation ID: 3015: in diskgroup Failed
+SQL : /* Exadata Auto Mgmt: Select disks in DG that are not ONLINE. */
+select name from v$asm_disk_stat
+where
+mode_status='OFFLINE'
+and
+group_number in
+(
+select group_number from v$asm_diskgroup_stat
+where
+name='SCRATCH_DG'
+and
+state='MOUNTED'
+)
+Our test database also detected the loss of the grid disk, as can be seen in the database alert log:
+alert_SCRATCH.log
+-----------------------
+Tue Dec 28 08:40:54 2010
+Errors in file /u01/app/oracle/diag/rdbms/scratch/SCRATCH/trace/SCRATCH_ckpt_22529.trc:
+ORA-27603: Cell storage I/O error, I/O failed on disk o/192.168.12.5/SCRATCH_CD_05_cell03 at
+offset 26361217024 for data length 16384
+ORA-27626: Exadata error: 201 (Generic I/O error)
+WARNING: Read Failed. group:5 disk:3 AU:6285 offset:16384 size:16384
+WARNING: failed to read mirror side 1 of virtual extent 0 logical extent 0 of file 260 in
+group [5.1611847437] from disk SCRATCH_CD_05_CELL03 allocation unit 6285 reason error; if
+possible,will try another mirror side
+NOTE: successfully read mirror side 2 of virtual extent 0 logical extent 1 of file 260 in
+group [5.1611847437] from disk SCRATCH_CD_05_CELL02 allocation unit 224
+...
+Tue Dec 28 08:40:54 2010
+NOTE: disk 3 (SCRATCH_CD_05_CELL03) in group 5 (SCRATCH) is offline for reads
+NOTE: disk 3 (SCRATCH_CD_05_CELL03) in group 5 (SCRATCH) is offline for writes
+Notice that the database automatically switches to the mirror copy for data it can no longer read
+from the failed grid disk. This is ASM normal redundancy in action.
+When we reinsert the disk drive, the storage cell returns the grid disk to a state of Active, and ASM
+brings the disk back online again. We can see that the grid disk has returned to a state of CACHED and a
+HEADER_STATUS of NORMAL in the following query:
+SYS:+ASM2> select dg.name, d.name, dg.state, d.mount_status, d.header_status, d.state
+from v$asm_disk d,
+v$asm_diskgroup dg
+where dg.name = 'SCRATCH'
+and dg.group_number = d.group_number
+order by 1,2;
+NAME NAME STATE MOUNT_S HEADER_STATU STATE
+------------- ------------------------- ---------- ------- ------------ ----------
+SCRATCH SCRATCH_CD_05_CELL01 MOUNTED CACHED MEMBER NORMAL
+SCRATCH SCRATCH_CD_05_CELL02 MOUNTED CACHED MEMBER NORMAL
+SCRATCH SCRATCH_CD_05_CELL03 MOUNTED CACHED MEMBER NORMAL <----------------------
+It is likely that the disk group will need to catch up on writing data that queued up while the disk was
+offline. If the duration of the outage was short and the write activity was light, then the rebalance won’t
+take long. It may even go unnoticed. But if the disk has been offline for several hours or days, or if there
+was a lot of write activity in the disk group during the outage, this could take a while. Generally speaking,
+the delay is not a problem, because it all happens in the background. During the resilvering process,
+ASM redundancy allows our databases to continue with no interruption to service.
+If this had been an actual disk failure and we actually replaced the disk drive, we would need to wait
+for the RAID controller to acknowledge the new disk before it could be used. This doesn’t take long but
+
+you should check the status of the disk to ensure that its status is Normal before using it. The disk status
+may be verified using the CellCLI command LIST PHYSICALDISK as shown here:
+CellCLI> list physicaldisk where diskType=HardDisk AND status=critical detail
+When a disk is replaced, the storage cell performs the following tasks automatically:
+• The disk firmware is updated to match the other disk drives in the storage cell.
+• The cell disk is re-created to match that of the disk it replaced.
+• The replacement cell disk is brought online (status set to Normal).
+• The grid disk (or grid disks) that were on the failed disk are re-created.
+• The grid disk status is set to Active.
+Once the replacement grid disks are set to Active, ASM automatically opens the disk and begins the
+resilvering process. All these tasks are handled automatically by Exadata, making disk replacement a
+fairly painless process.
+
+
+**************************************************************************************************************************
+When to Replace a Cell Disk
+----------------------------
+Disk failure can occur abruptly, causing the disk to go offline immediately, or it can occur gradually,
+manifesting poor I/O performance. Storage cells are constantly monitoring the disk drives. This
+monitoring includes drive performance, in terms of both I/O and throughput, and SMART metrics such
+as temperature, speed, and read/write errors. The goal is to provide early warning for disks that are likely
+to fail before they actually do. When Exadata detects a problem, an alert is generated with specific
+instructions on how to replace the disk. If the system has been configured for email notification these
+alerts will be emailed to you automatically.
+In the previous section we walked through a simulated drive failure. Had this been an actual disk
+failure, the procedure for replacing the disk would follow the same steps we used for the simulation. But
+what happens when Exadata’s early warning system determines that a drive is likely to fail soon? When
+Exadata detects drive problems it sets the physical disk status attribute accordingly. The following
+CellCLI command displays the status of all disks in the storage cell.
+CellCLI> list physicaldisk attributes name, status where disktype = 'HardDisk'
+35:0 normal
+35:1 normal
+...
+35:11 normal
+
+
+Disk Status Definitions
+
+Status Description
+Normal -----------> The drive is healthy.
+Predictive Failure------------> The disk is still working but likely to fail soon and should be replaced as soon as
+possible.
+Poor Performance--------------> The disk is exhibiting extremely poor performance and should be replaced.
+
+**************************************************************************************************************************
+Poor Performance:
+-----------------
+CellCLI> calibrate
+Calibration will take a few minutes...
+Aggregate random read throughput across all hard disk luns: 1025 MBPS
+Aggregate random read throughput across all flash disk luns: 3899.18 MBPS
+Aggregate random read IOs per second (IOPS) across all hard disk luns: 1707
+Aggregate random read IOs per second (IOPS) across all flash disk luns: 145158
+**************************************************************************************************************************
+
+
+**************************************************************************************************************************
+
+Performing Rescue Using the CELLBOOT USB Flash Drive:
+-----------------------------------------------------
+
+Using the Oracle Exadata Storage Server Software Rescue Procedure
+The rescue procedure is necessary when system disks fail, the operating system has a
+corrupt file system, or there was damage to the boot area. If only one system disk fails,
+then use CellCLI commands to recover. In the rare event that both system disks fail
+simultaneously, you must use the Exadata Storage Server rescue functionality
+provided on the Oracle Exadata Storage Server Software CELLBOOT USB flash drive.
+If you are using normal redundancy, then there is only one mirror copy for the cell
+being rescued. The data may be irrecoverably lost if that single mirror also fails during
+the rescue procedure. Oracle recommends you take a complete backup of the data on
+the mirror copy, and immediately take the mirror copy cell offline to prevent any new
+data changes to it prior to attempting a rescue. This ensures that all data residing on
+the grid disks on the failed cell and its mirror copy is inaccessible during rescue
+procedure.
+The Oracle ASM disk repair timer has a default repair time of 3.6 hours. If you know
+that you cannot perform the rescue procedure within that time frame, then you should
+use the Oracle ASM rebalance procedure to rebalance the disk until you can do the
+rescue procedure.
+
+
+
+
+When using high redundancy disk groups, such as having more than one mirror copy
+in Oracle ASM for all the grid disks of the failed cell, then take the failed cell offline.
+Oracle ASM automatically drops the grid disks on the failed cell after the configured
+Oracle ASM time out, and starts rebalancing data using mirror copies. The default
+timeout is two hours. If the cell rescue takes more than two hours, then you must
+re-create the grid disks on the rescued cells in Oracle ASM.
+
+Caution: Use the rescue procedure with extreme caution. Incorrectly
+using the procedure can cause data loss
+
+It is important to note the following when using the rescue procedure:
+** The rescue procedure can potentially rewrite some or all of the disks in the cell. If
+this happens, then you can lose all the content on those disks without possibility of
+recovery.
+
+
+It is important to note the following when using the rescue procedure:
+** The rescue procedure can potentially rewrite some or all of the disks in the cell. If
+this happens, then you can lose all the content on those disks without possibility of
+recovery.
+
+
+Use extreme caution when using this procedure, and pay attention to the prompts.
+Ideally, you should use the rescue procedure only with assistance from Oracle
+Support Services, and when you have decided that you can afford the loss of data
+on some or all of the disks.
+** The rescue procedure does not destroy the contents of the data disks or the
+contents of the data partitions on the system disks unless you explicitly choose to
+do so during the rescue procedure.
+** Starting in Oracle Exadata Storage Server Software 11g Release 2 (11.2), the rescue
+procedure restores the Exadata Storage Server software to the same release. This
+includes any patches that existed on the cell as of the last successful boot. The
+following is not restored using the rescue procedure:
+– Configuration for the cell, such as alert configurations, SMTP information,
+administrator e-mail address, and so on. It does however restore the network
+configuration that existed at the end of last successful run of
+/usr/local/bin/ipconf utility. It does restore the SSH identities for the cell,
+and the root, celladmin and cellmonitor users.
+– ILOM configurations for Exadata Storage Servers. Typically, ILOM
+configurations remain undamaged even in case of Exadata Storage Server
+software failures.
+** The rescue procedure does not examine or reconstruct data disks or data partitions
+on the system disks. If there is data corruption on the grid disks, then do not use
+the rescue procedure. Instead use the rescue procedure for Oracle Database and
+Oracle ASM.
+After a successful rescue, you must reconfigure the cell, and if you had chosen to
+preserve the data, then import the cell disks. If you chose not to preserve the data, then
+you should create new cell disks, and grid disks.
+This section contains the following topics:
+** Performing Rescue Using the CELLBOOT USB Flash Drive
+** Re-creating a Damaged CELLBOOT USB Flash Drive
+Performing Rescue Using the CELLBOOT USB Flash Drive
+Using the CELLBOOT USB flash drive, perform the following procedure:
+1. Connect to the Exadata Storage Server using the console.
+2. Boot the Exadata Storage Server, and as soon as you see the "Oracle Exadata"
+splash screen, press any key on the keyboard. The splash screen remains visible for
+only 5 seconds.
+3. In the displayed list of boot options, scroll down to the last option, CELL_USB_
+BOOT_CELLBOOT_usb_in_rescue_mode, and press Enter.
+4. Select the rescue option, and proceed with the rescue.
+See Also: Oracle Exadata Storage Server Software User's Guide for
+information about the ALTER CELL command
+See Also: Oracle Exadata Storage Server Software User's Guide for
+information on
+
+5. Do the following when prompted to restart the system or enter the shell at the end
+of the first phase of the rescue:
+a. Choose to enter the shell. Do not choose to restart the system.
+b. Log in to the shell using the rescue root password.
+c. Run the reboot command from the shell.
+d. Press F8 as the cell restarts and before the Oracle Exadata splash screen
+appears. Pressing F8 accesses the boot device selection menu.
+e. Select the RAID controller as the boot device. This causes the cell to boot from
+the hard disks.
+After a successful rescue, you must configure the cell. If the data partitions were
+preserved, then the cell disks were imported automatically during the rescue
+procedure.
+1. Re-create the cell disks and grid disks for any disks that were replaced during the
+rescue procedure.
+2. Check the status of the grid disk. If it is inactive, run the command below to make
+it active:
+CellCLI> ALTER GRIDDISK ALL ACTIVE
+3. Log in to the Oracle ASM instance, and set the disks to ONLINE using the following
+command for each disk group:
+SQL> ALTER DISKGROUP disk_group_name ONLINE DISKS IN FAILGROUP \
+cell_name WAIT;
+4. Reconfigure the cell using the ALTER CELL command. The following is an example
+for the most-common parameters:
+CellCLI> ALTER CELL
+smtpServer='my_mail.example.com', -
+smtpFromAddr='john.doe@example.com', -
+Note: Additional options may be available that allow you to enter a
+rescue mode Linux login shell with limited functionality. You can log
+in to the shell as the root user with the password supplied by Oracle
+Support Services to manually run additional diagnostics and repairs
+on the cell. For complete details, refer to the release notes or the latest
+documentation for this release available to you online or through your
+Oracle Support Services representative.
+Note: If the command fails because the disks were already
+force-dropped, then you need to force-add the disks back to the ASM
+disk groups.
+Note: The grid disk attributes asmmodestatus and
+asmdeactivationoutcome will not report correctly until the ALTER
+DISKGROUP statement is complete.
+Using the Oracle Exadata Storage Server Software Rescue Procedure
+Maintaining Exadata Storage Servers of Oracle Exadata Racks 3-39
+smtpPwd=email_address_password, -
+smtpToAddr='jane.smith@example.com', -
+notificationPolicy='critical,warning,clear', -
+notificationMethod='mail,snmp'
+5. Re-create the I/O Resource Management (IORM) plan.
+6. Re-create the metric thresholds.
+Configuring Oracle Exadata Database Machine Eighth Rack Storage Server After
+Rescue
+In Oracle Exadata Storage Server Software release 11.2.3.3 and later, no extra steps are
+needed after cell rescue. Use the following procedure to verify the configuration:
+1. Copy the /opt/oracle.SupportTools/resourcecontrol utility from another
+storage server to the /opt/oracle.SupportTools/resourcecontrol directory on
+the recovered server.
+2. Ensure proper permissions are set on the utility using the following command:
+# chmod 740 /opt/oracle.SupportTools/resourcecontrol
+3. Verify the current configuration using the following command. The output from
+the command is shown.
+# /opt/oracle.SupprtTools/resourcecontrol -show
+Validated hardware and OS. Proceed.
+Number of cores active: 6
+Number of harddisks active: 6
+Number of flashdisks active: 8
+For an eighth rack configuration, six cores, six hard disks, and 8 flash disks should
+be enabled. If other values are shown, then use the following command to enable
+the eighth rack configuration:
+ALTER CELL eighthRack=true
+
+
+**************************************************************************************************************************
+
+Re-creating a Damaged CELLBOOT USB Flash Drive
+-----------------------------------------------
+
+If the CELLBOOT USB flash drive is lost or damaged, then you can create a new one
+using the following procedure:
+1. Log in to the cell as the root user.
+2. Attach a new USB flash drive. This flash drive should have a capacity of at least 1
+GB, and up to 8 GB.
+Note: To create a USB flash drive for a machine running Oracle 
+Exadata Storage Server Software release 12.1.2.1.0 or later requires a machine running Oracle Linux 6.
+3. Remove any other USB flash drives from the system.
+4. Run the following commands:
+cd /opt/oracle.SupportTools
+./make_cellboot_usb -verbose -force
+
+
+
+
+

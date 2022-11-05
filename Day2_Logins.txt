@@ -1,0 +1,8 @@
+Windows Machine
+
+username : user
+password : admin
+
+On Linux(VM Image) For Both Storage/Cell Server and DB Server(Compute Node)
+Username: root
+Password: welcome1

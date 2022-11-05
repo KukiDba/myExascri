@@ -1,0 +1,107 @@
+DROP TABLE tab1 PURGE;
+
+CREATE TABLE tab1 (
+  id                NUMBER,
+  code              VARCHAR2(20),
+  description       VARCHAR2(50),
+  created_date      DATE,
+  CONSTRAINT tab1_pk PRIMARY KEY (id)
+)
+PARTITION BY RANGE (created_Date)
+(PARTITION tab1_part_2015 VALUES LESS THAN (TO_DATE('01/01/2016', 'DD/MM/YYYY')) TABLESPACE users,
+ PARTITION tab1_part_2016 VALUES LESS THAN (TO_DATE('01/01/2017', 'DD/MM/YYYY')) TABLESPACE users);
+
+CREATE INDEX tab1_code_idx ON tab1(code) LOCAL;
+
+INSERT INTO tab1
+SELECT level,
+       CASE
+         WHEN MOD(level,2)=0 THEN 'CODE1'
+         ELSE 'CODE2'
+       END,
+       CASE
+         WHEN MOD(level,2)=0 THEN 'Description for CODE1'
+         ELSE 'Description for CODE2'
+       END,
+       CASE
+         WHEN MOD(level,2)=0 THEN SYSDATE
+         ELSE ADD_MONTHS(SYSDATE, 12)
+       END
+FROM   dual
+CONNECT BY level <= 100000;
+COMMIT;
+
+EXEC DBMS_STATS.gather_table_stats(USER, 'TAB1');
+GET_COMPRESSION_RATIO
+
+The GET_COMPRESSION_RATIO procedure estimates the impact of different levels of compression on a specified table or partition. The constants for the possible compression types and the row sample sizes are shown here.
+
+The following example shows the effect of OLTP compression on a specific table, using all rows in the table as a sample size.
+
+SET SERVEROUTPUT ON
+DECLARE
+  l_blkcnt_cmp    PLS_INTEGER;
+  l_blkcnt_uncmp  PLS_INTEGER;
+  l_row_cmp       PLS_INTEGER;
+  l_row_uncmp     PLS_INTEGER;
+  l_cmp_ratio     NUMBER;
+  l_comptype_str  VARCHAR2(32767);
+BEGIN
+  DBMS_COMPRESSION.get_compression_ratio (
+    scratchtbsname  => 'USERS',
+    ownname         => 'TEST',
+    tabname         => 'TAB1',
+    partname        => NULL,
+    comptype        => DBMS_COMPRESSION.comp_for_oltp,
+    blkcnt_cmp      => l_blkcnt_cmp,
+    blkcnt_uncmp    => l_blkcnt_uncmp,
+    row_cmp         => l_row_cmp,
+    row_uncmp       => l_row_uncmp,
+    cmp_ratio       => l_cmp_ratio,
+    comptype_str    => l_comptype_str,
+    subset_numrows  => DBMS_COMPRESSION.comp_ratio_allrows
+  );
+
+  DBMS_OUTPUT.put_line('Number of blocks used (compressed)       : ' ||  l_blkcnt_cmp);
+  DBMS_OUTPUT.put_line('Number of blocks used (uncompressed)     : ' ||  l_blkcnt_uncmp);
+  DBMS_OUTPUT.put_line('Number of rows in a block (compressed)   : ' ||  l_row_cmp);
+  DBMS_OUTPUT.put_line('Number of rows in a block (uncompressed) : ' ||  l_row_uncmp);
+  DBMS_OUTPUT.put_line('Compression ratio                        : ' ||  l_cmp_ratio);
+  DBMS_OUTPUT.put_line('Compression type                         : ' ||  l_comptype_str);
+END;
+/
+Number of blocks used (compressed)       : 165
+Number of blocks used (uncompressed)     : 629
+Number of rows in a block (compressed)   : 599
+Number of rows in a block (uncompressed) : 157
+Compression ratio                        : 3.8
+Compression type                         : "Compress For OLTP"
+
+PL/SQL procedure successfully completed.
+
+SQL>
+GET_COMPRESSION_TYPE
+
+The GET_COMPRESSION_TYPE function displays the level of compression for a specified row in a table.
+
+SELECT rowid,
+       CASE DBMS_COMPRESSION.get_compression_type ('TEST', 'TAB1', rowid)
+         WHEN 1  THEN 'COMP_NOCOMPRESS'
+         WHEN 2  THEN 'COMP_FOR_QUERY_HIGH'
+         WHEN 4  THEN 'COMP_FOR_QUERY_LOW'
+         WHEN 8  THEN 'COMP_FOR_ARCHIVE_HIGH'
+         WHEN 16 THEN 'COMP_FOR_ARCHIVE_LOW'
+         WHEN 32 THEN 'COMP_BLOCK'
+       END AS compression_type
+FROM   tab1
+WHERE  rownum <= 5;
+
+ROWID              COMPRESSION_TYPE
+------------------ ---------------------
+AABIaOAAEAAAAmvAAA COMP_NOCOMPRESS
+AABIaNAAEAAAA2vAAA COMP_NOCOMPRESS
+AABIaOAAEAAAAmvAAB COMP_NOCOMPRESS
+AABIaNAAEAAAA2vAAB COMP_NOCOMPRESS
+AABIaOAAEAAAAmvAAC COMP_NOCOMPRESS
+
+SQL>

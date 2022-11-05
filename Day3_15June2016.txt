@@ -1,0 +1,31 @@
+1)list the lun which are Free/Unused/Not Used
+2)list the celldisks which are Free/Unused/Not Used((Unused=freespace!=0 vs) (Full=freespace=0))
+3)list the griddisks which are not used
+
+1)list the lun which are Free/Unused/Not Used :
+-----------------------------------------------
+
+cellcli -e list lun attributes name,celldisk,disktype where celldisk=null
+
+2)list the celldisks which are Free/Unused/Not Used :
+-----------------------------------------------------
+cellcli -e list celldisk attributes name,size,status,freespace,disktype  where freespace!=0 
+cellcli -e list celldisk attributes name,size,status,freespace,disktype where disktype=harddisk and freespace!=0
+cellcli -e list celldisk attributes devicename,name,size,status,freespace,disktype  where freespace!=0 and disktype=harddisk
+
+3(list the griddisks which are Free/Unused/Not Used (ASMModeStatus=UNUSED) :
+----------------------------------------------------------------------------
+cellcli -e list griddisk attributes name, ASMDeactivationOutcome, ASMModeStatus  where disktype=harddisk
+
+
+
+
+kfod disks=all status=true op=all
+kfod disks=all op=candidates
+kfod disks=all op=disks
+
+
+
+
+Active/Inactive Grid Disk:
+--------------------------

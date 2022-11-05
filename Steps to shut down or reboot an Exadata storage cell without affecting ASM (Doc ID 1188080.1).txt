@@ -1,0 +1,102 @@
+Steps to shut down or reboot an Exadata storage cell without affecting ASM (Doc ID 1188080.1)	
+
+APPLIES TO:
+
+Oracle Exadata Storage Server Software - Version 11.2.1.2.0 and later
+Linux x86-64
+GOAL
+
+To provide steps to power down or reboot an Exadata Storage cell without affecting ASM.
+
+SOLUTION
+
+Steps to power down or reboot a cell without affecting ASM:
+
+When performing maintenance on Exadata Cells, it may be necessary to power down or reboot the cell. If a storage server is to be shut down when one or more databases are running, then verify that taking the storage server offline will not impact Oracle ASM disk group and database availability. The ability to take Oracle Exadata Storage Server offline without affecting database availability depends on the level of Oracle ASM redundancy used on the affected disk groups, and the current status of disks in other Oracle Exadata Storage Servers that have mirror copies of data as Oracle Exadata Storage Server to be taken offline.
+=====================================================================================================================================================
+
+1)  By default, ASM drops a disk shortly after it is taken offline; however, you can set the DISK_REPAIR_TIME attribute to prevent this operation by specifying a time interval to repair the disk and bring it back online. The default DISK_REPAIR_TIME attribute value of 3.6h should be adequate for most environments.
+
+(a) To check repair times for all mounted disk groups - log into the ASM instance and perform the following query:
+SQL> select dg.name,a.value from v$asm_diskgroup
+dg, v$asm_attribute a where dg.group_number=a.group_number and
+a.name='disk_repair_time';
+(b) If you need to offline the ASM disks for more than the default time of 3.6 hours then adjust the parameter by issuing the command below as an example:
+SQL> ALTER DISKGROUP DATA SET ATTRIBUTE 'DISK_REPAIR_TIME'='8.5H';
+2)  Next you will need to check if ASM will be OK if the grid disks go OFFLINE. The following command should return 'Yes' for the grid disks being listed:
+
+cellcli -e list griddisk attributes name,asmmodestatus,asmdeactivationoutcome
+3) If one or more disks does not return asmdeactivationoutcome='Yes', you should check the respective diskgroup and restore the data redundancy for that diskgroup.
+    Once the diskgroup data redundancy is fully restored, repeat the previous command (step #2).
+    Once all disks return asmdeactivationoutcome='Yes', you can proceed with taking the griddisk offline (step #4).
+
+Note: Shutting down the cell services when one or more grid disks does not return asmdeactivationoutcome='Yes' will cause Oracle ASM to dismount the affected disk group, causing the databases to shut down abruptly.
+
+ 
+
+4) Run cellcli command to Inactivate all grid disks on the cell you wish to power down/reboot:
+
+cellcli -e alter griddisk all inactive
+
+* Please note - This action could take 10 minutes or longer depending on activity. It is very important to make sure you were able to offline all the disks successfully before shutting down the cell services. Inactivating the grid disks will automatically OFFLINE the disks in the ASM instance. 
+
+5) Confirm that the griddisks are now offline by performing the following actions:
+
+(a) Execute the command below and the output should show either asmmodestatus=OFFLINE or asmmodestatus=UNUSED and asmdeactivationoutcome=Yes for all griddisks once the disks are offline in ASM. Only then is it safe to proceed with shutting down or restarting the cell:
+cellcli -e list griddisk attributes name,asmmodestatus,asmdeactivationoutcome
+( there has also been a reported case of asmmodestatus= OFFLINE: Means Oracle ASM has taken this grid disk offline. This status is also fine and can proceed with remaining instructions)
+
+(b) List the griddisks to confirm all now show inactive:
+cellcli -e list griddisk
+6) You can now reboot the cell. Oracle Exadata Storage Servers are powered off and rebooted using the Linux shutdown command.
+
+(a) The following command will shut down Oracle Exadata Storage Server immediately: (as root):
+#shutdown -h now
+(When powering off Oracle Exadata Storage Servers, all storage services are automatically stopped.)
+
+(b) The following command will reboot Oracle Exadata Storage Server immediately and force fsck on reboot:
+#shutdown -F -r now
+7) Once the cell comes back online - you will need to reactive the griddisks:
+
+cellcli -e alter griddisk all active
+8) Issue the command below and all disks should show 'active':
+
+cellcli -e list griddisk
+9)  Verify grid disk status:
+
+(a) Verify all grid disks have been successfully put online using the following command:
+cellcli -e list griddisk attributes name, asmmodestatus
+(b) Wait until asmmodestatus is ONLINE for all grid disks. Each disk will go to a 'SYNCING' state first then 'ONLINE'. The following is an example of the output:
+DATA_CD_00_dm01cel01 ONLINE
+DATA_CD_01_dm01cel01 SYNCING
+DATA_CD_02_dm01cel01 OFFLINE
+DATA_CD_03_dm01cel01 OFFLINE
+DATA_CD_04_dm01cel01 OFFLINE
+DATA_CD_05_dm01cel01 OFFLINE
+DATA_CD_06_dm01cel01 OFFLINE
+DATA_CD_07_dm01cel01 OFFLINE
+DATA_CD_08_dm01cel01 OFFLINE
+DATA_CD_09_dm01cel01 OFFLINE
+DATA_CD_10_dm01cel01 OFFLINE
+DATA_CD_11_dm01cel01 OFFLINE
+(c) Oracle ASM synchronization is only complete when all grid disks show asmmodestatus=ONLINE.
+( Please note:  this operation uses Fast Mirror Resync operation - which does not trigger an ASM rebalance. The Resync operation restores only the extents that would have been written while the disk was offline.)
+
+  
+
+10) Before taking another storage server offline, Oracle ASM synchronization must complete on the restarted Oracle Exadata Storage Server. If synchronization is not complete, then the check performed on another storage server will fail. The following is an example of the output:
+
+
+CellCLI> list griddisk attributes name where asmdeactivationoutcome != 'Yes'
+DATA_CD_00_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_01_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_02_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_03_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_04_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_05_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_06_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_07_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_08_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_09_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_10_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"
+DATA_CD_11_dm01cel02 "Cannot de-activate due to other offline disks in the diskgroup"

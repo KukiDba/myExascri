@@ -1,0 +1,145 @@
+Steps To Shutdown & Startup the whole Exadata database machine
+Steps To Shutdown & Startup The Exadata & RDBMS Services and Cell/Compute Nodes On An Exadata Configuration. 
+--------------------------------------------------------------------------------------------------------------------------------------
+
+As per contract with Oracle we cannot do any hardware maintenace or movement by ourself on Exadata Database Machine, it needs to be done by Oracle Engineers only. But we are responsilbe to shutdown the whole machine or a single node. Below are the steps to shutdown the whole Exadata Database machine for a maintenance needs to be done by Oracle Engineers.
+
+1) Log in to the first database server as root and Change to the OneCommand directory
+
+snkexp1adm01 (My Exadata Compute node name)
+
+cd /opt/oracle.SupportTools/onecommand
+
+
+2)  Disable the replication (if it has dataguard setup)
+
+On Primary DB:
+
+i) SQL> alter system set log_archive_dest_state_2=DEFER;
+
+
+3) Note whether the Grid Infrastructure is currently enabled for autostart, so that this state can be restored later (as root user):
+
+dcli -g dbs_group -l root /u01/app/11.2.0.4/grid/bin/crsctl config crs
+
+
+4) Disable the Grid Infrastructure for autostart on the database servers if the previous step indicated it is currently enabled for autostart.
+
+dcli -g dbs_group -l root /u01/app/11.2.0.4/grid/bin/crsctl disable crs
+
+Note: This is step is [Optional] and it can required during maintenance operation like "firmware patches" which requires to reboot the Compute Node several times.
+
+
+5) Stop the Grid Infrastructure stack on the database servers (compute nodes):
+
+dcli -g dbs_group -l root /u01/app/11.2.0.4/grid/bin/crsctl stop crs
+
+
+6) Verify that the Grid Infrastructure stack has shutdown successfully on the database servers. The following command should show no output if the GI stack has shutdown:
+
+dcli -g dbs_group -l root "ps -ef | grep diskmo[n]"
+
+
+7) Power off all the compute nodes (except compute node 1):
+
+dcli -g remote_dbs_group -l root poweroff
+
+Note : remote_dbs_group is file which is having the entry of all other DB nodes except the current node.
+
+8) Shutdown all the cells:
+
+dcli -g cell_group -l root "su - celladmin -c \"cellcli -e list cell detail \""
+
+dcli -g cell_group -l root "su - celladmin -c \"cellcli -e alter cell shutdown services all \""
+
+dcli -g cell_group -l root "su - celladmin -c \"cellcli -e list cell detail \""
+
+
+9) Power off all cells:
+
+dcli -g cell_group -l root poweroff
+
+
+10) Power off the compute node #1 (current node):
+
+poweroff
+
+***********************************************************************
+Now Handover the system to the Oracle Engineers for further maintenance.
+***********************************************************************
+
+
+11) Power “compute node #1” on, by using the power button on the front panel of the compute node or via it's WebILOM..
+
+12) Then login to the compute node #1 as root and Change to the OneCommand directory
+
+snkexp1adm01
+
+cd /opt/oracle.SupportTools/onecommand 
+
+13) Power the cells on, either by using the power button on the front panel of the Exadata Storage Servers, or by executing the following script from the first database server (from Compute node #1):
+
+for host in `cat cell_group`; do
+ echo ${host}: `ipmitool -H ${host}-ilom -U root -P welcome1 chassis power on`
+ done
+
+14) Wait until all the Cell servers are up, then verify that all Exadata Storage Servers have booted successfully:
+
+dcli -g cell_group -l root 'hostname; uptime'
+
+15) Now power the remaining compute nodes on, either by using the power button on the front panel of the Exadata Storage Servers, or by executing the following script from the first database server:
+
+for host in `cat dbs_group`; do
+ echo ${host}: `ipmitool -H ${host}-ilom -U root -P welcome1 chassis power on`
+ done
+
+16) Wait until all the Compute nodes are up, then verify that all Exadata Compute Nodes have booted successfully:
+
+dcli -g dbs_group -l root 'hostname; uptime'
+
+17) Verify all the cells are up (MS, RS & CELLSRV services must be running):
+
+dcli -g cell_group -l root "su - celladmin -c \"cellcli -e list cell detail \""
+
+
+18) Start the Grid Infrastructure stack on the first database server
+
+/u01/app/11.2.0.4/grid/bin/crsctl start crs
+
+19) Wait for cluster to be started. To check the status of the Grid Infrastructure stack, run the following command and verify that the "ora.asm" instance is started.
+
+/u01/app/11.2.0.4/grid/bin/crsctl status resource -t
+
+20) Start the Grid Infrastructure stack on all remaining database servers with a 1-minute delay between servers. 
+
+We can start cluster on each server either manually or by giving below command -
+
+for h in `cat dbs_group`; do
+ echo "Starting CRS on host $h"
+ ssh $h /u01/app/11.2.0.4/grid/bin/crsctl start crs
+ echo "Waiting 60 seconds..."
+ sleep 60
+ done
+
+ 21) Monitor the startup progress (this could take several minutes):
+
+/u01/app/11.2.0.4/grid/bin/crsctl status resource -t
+
+22) Re-enable the Grid Infrastructure for autostart if it was found to be enabled for autostart at the beginning of the pre-maintenance steps.
+
+dcli -g dbs_group -l root /u01/app/11.2.0.4/grid/bin/crsctl enable crs
+
+23) Enable the replication. 
+
+On Primary DB:
+
+i) SQL> alter system set log_archive_dest_state_2=ENABLE;
+
+Power off Sequence
+------------------
+ Shut down Database
+ Stop CRS on all nodes
+ Shut down Database server
+ Shut down cell storage
+ Power off network devices
+ Remove power cables from PDUs
